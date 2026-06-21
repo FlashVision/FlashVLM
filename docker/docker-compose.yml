@@ -1,0 +1,59 @@
+services:
+  flashvlm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: flashvlm:latest
+    container_name: flashvlm
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - TRANSFORMERS_CACHE=/app/models/hub
+      - HF_HOME=/app/models/hub
+    volumes:
+      - ../configs:/app/configs:ro
+      - flashvlm-models:/app/models
+      - flashvlm-data:/app/data
+      - flashvlm-outputs:/app/outputs
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["check"]
+
+  flashvlm-train:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: flashvlm:latest
+    container_name: flashvlm-train
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TRANSFORMERS_CACHE=/app/models/hub
+    volumes:
+      - ../configs:/app/configs:ro
+      - flashvlm-models:/app/models
+      - flashvlm-data:/app/data
+      - flashvlm-outputs:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: ["train", "--config", "configs/flashvlm_llava_7b.yaml"]
+    profiles:
+      - training
+
+volumes:
+  flashvlm-models:
+  flashvlm-data:
+  flashvlm-outputs:

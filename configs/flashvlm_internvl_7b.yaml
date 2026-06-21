@@ -1,0 +1,82 @@
+model_name: flashvlm-internvl-7b
+architecture: internvl
+
+vision:
+  encoder_name: OpenGVLab/InternViT-6B-448px-V1-5
+  image_size: 448
+  patch_size: 14
+  hidden_size: 3200
+  num_layers: 48
+  num_heads: 25
+  freeze: true
+  use_checkpoint: true
+
+projector:
+  type: mlp
+  input_dim: 12800
+  output_dim: 4096
+  num_layers: 2
+  num_query_tokens: 64
+  dropout: 0.0
+
+language:
+  model_name: internlm/internlm2-chat-7b
+  hidden_size: 4096
+  num_layers: 32
+  num_heads: 32
+  vocab_size: 92544
+  max_length: 4096
+  freeze: false
+  use_flash_attention: true
+
+lora:
+  enabled: true
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - v_proj
+    - k_proj
+    - o_proj
+  use_qlora: false
+  bits: 4
+
+training:
+  epochs: 3
+  batch_size: 2
+  gradient_accumulation_steps: 16
+  learning_rate: 1.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  lr_scheduler: cosine
+  max_grad_norm: 1.0
+  fp16: false
+  bf16: true
+  deepspeed: null
+  output_dir: outputs/internvl-7b
+  save_steps: 500
+  eval_steps: 100
+  logging_steps: 10
+  dataloader_num_workers: 4
+  seed: 42
+
+generation:
+  max_new_tokens: 1024
+  temperature: 0.7
+  top_k: 50
+  top_p: 0.9
+  repetition_penalty: 1.1
+  do_sample: true
+  num_beams: 1
+  length_penalty: 1.0
+  early_stopping: false
+
+data:
+  train_data: null
+  val_data: null
+  test_data: null
+  image_dir: null
+  max_length: 4096
+  image_size: 448
+  augmentation: true
