@@ -168,6 +168,19 @@ class FlashVLM(nn.Module):
 
         return projected
 
+    def encode_images(
+        self, images: List[Union[str, Path, Image.Image, torch.Tensor]]
+    ) -> List[torch.Tensor]:
+        """Encode multiple images into visual embeddings.
+
+        Args:
+            images: List of images (PIL, path, or tensor).
+
+        Returns:
+            List of visual embedding tensors, each (1, num_tokens, hidden_dim).
+        """
+        return [self.encode_image(img) for img in images]
+
     def _preprocess_image(self, image: Union[str, Path, Image.Image, torch.Tensor]) -> torch.Tensor:
         """Convert various image inputs to a preprocessed tensor."""
         if isinstance(image, torch.Tensor):
@@ -182,21 +195,69 @@ class FlashVLM(nn.Module):
         pixel_values = transform(image).unsqueeze(0)
         return pixel_values
 
+    def _interleave_multi_image_tokens(
+        self,
+        input_ids: torch.Tensor,
+        image_embeds_list: List[torch.Tensor],
+    ) -> torch.Tensor:
+        """Replace multiple <image> tokens in the input with corresponding visual embeddings.
+
+        Supports prompts like: "<image_1> What is in image 1? <image_2> Compare with image 2."
+        Falls back to concatenating all image embeddings before text if no placeholders found.
+        """
+        if hasattr(self.language_model, "get_input_embeddings"):
+            embed_layer = self.language_model.get_input_embeddings()
+        else:
+            embed_layer = self.language_model[0]
+
+        text_embeds = embed_layer(input_ids)
+        IMAGE_TOKEN_INDEX = -200
+
+        image_positions = (input_ids[0] == IMAGE_TOKEN_INDEX).nonzero(as_tuple=True)[0]
+
+        if len(image_positions) == 0:
+            all_visual = torch.cat(image_embeds_list, dim=1)
+            return torch.cat([all_visual, text_embeds], dim=1)
+
+        segments = []
+        prev_pos = 0
+        img_idx = 0
+
+        for pos in image_positions:
+            pos = pos.item()
+            if prev_pos < pos:
+                segments.append(text_embeds[:, prev_pos:pos, :])
+            if img_idx < len(image_embeds_list):
+                segments.append(image_embeds_list[img_idx])
+                img_idx += 1
+            prev_pos = pos + 1
+
+        if prev_pos < text_embeds.shape[1]:
+            segments.append(text_embeds[:, prev_pos:, :])
+
+        while img_idx < len(image_embeds_list):
+            segments.append(image_embeds_list[img_idx])
+            img_idx += 1
+
+        return torch.cat(segments, dim=1)
+
     def generate(
         self,
         prompt: str,
         image: Optional[Union[str, Path, Image.Image, torch.Tensor]] = None,
+        images: Optional[List[Union[str, Path, Image.Image, torch.Tensor]]] = None,
         max_new_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
         **kwargs: Any,
     ) -> str:
-        """Generate text given a prompt and optional image.
+        """Generate text given a prompt and optional image(s).
 
         Args:
             prompt: Text prompt for generation.
-            image: Optional image input.
+            image: Optional single image input.
+            images: Optional list of images for multi-image conversations.
             max_new_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
             top_p: Nucleus sampling threshold.
@@ -217,9 +278,15 @@ class FlashVLM(nn.Module):
         input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self._device)
         attention_mask = torch.ones_like(input_ids)
 
-        if image is not None:
-            visual_embeds = self.encode_image(image)
-            inputs_embeds = self._merge_visual_text_embeddings(input_ids, visual_embeds)
+        has_images = image is not None or (images is not None and len(images) > 0)
+
+        if has_images:
+            if images is not None and len(images) > 0:
+                image_embeds_list = self.encode_images(images)
+                inputs_embeds = self._interleave_multi_image_tokens(input_ids, image_embeds_list)
+            else:
+                visual_embeds = self.encode_image(image)
+                inputs_embeds = self._merge_visual_text_embeddings(input_ids, visual_embeds)
             gen_kwargs = {
                 "inputs_embeds": inputs_embeds,
                 "max_new_tokens": max_new_tokens,
