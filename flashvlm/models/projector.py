@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import math
-from typing import Optional
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from flashvlm.cfg.config import ProjectorConfig
 from flashvlm.registry import PROJECTORS
@@ -98,10 +94,12 @@ class CrossAttentionProjector(Projector):
     def __init__(self, config: ProjectorConfig):
         super().__init__(config)
         self.input_proj = nn.Linear(config.input_dim, config.output_dim)
-        self.layers = nn.ModuleList([
-            CrossAttentionBlock(config.output_dim, num_heads=8, dropout=config.dropout)
-            for _ in range(config.num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [
+                CrossAttentionBlock(config.output_dim, num_heads=8, dropout=config.dropout)
+                for _ in range(config.num_layers)
+            ]
+        )
         self.output_proj = nn.Linear(config.output_dim, config.output_dim)
 
     def forward(self, visual_features: torch.Tensor) -> torch.Tensor:

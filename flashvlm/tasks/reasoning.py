@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -35,11 +35,7 @@ class ReasoningTask:
             "Question: {question}\n\n"
             "Let me count step by step:"
         ),
-        "comparison": (
-            "Compare the elements in this image.\n\n"
-            "Question: {question}\n\n"
-            "Analysis:"
-        ),
+        "comparison": ("Compare the elements in this image.\n\nQuestion: {question}\n\nAnalysis:"),
         "causal": (
             "Analyze the cause and effect relationships visible in this image.\n\n"
             "Question: {question}\n\n"
@@ -61,11 +57,11 @@ class ReasoningTask:
 
     def reason(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         question: str,
-        reasoning_type: Optional[str] = None,
+        reasoning_type: str | None = None,
         **kwargs: Any,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Perform visual reasoning with step-by-step explanation.
 
         Args:
@@ -90,11 +86,11 @@ class ReasoningTask:
 
     def multi_step_reason(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         question: str,
         num_steps: int = 3,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Perform multi-step reasoning with iterative refinement.
 
         Args:
@@ -117,7 +113,8 @@ class ReasoningTask:
             elif step == num_steps - 1:
                 step_prompt = (
                     f"Previous observations:\n{context}\n\n"
-                    f"Step {step + 1}: Based on all observations, what is the final answer to: {question}"
+                    f"Step {step + 1}: Based on all observations,"
+                    f" what is the final answer to: {question}"
                 )
             else:
                 step_prompt = (
@@ -147,7 +144,7 @@ class ReasoningTask:
         )
         return template.format(question=question)
 
-    def _parse_response(self, response: str) -> Dict[str, str]:
+    def _parse_response(self, response: str) -> dict[str, str]:
         """Parse reasoning response into steps and final answer."""
         response = response.strip()
 
@@ -175,9 +172,9 @@ class ReasoningTask:
 
     def evaluate(
         self,
-        predictions: List[Dict[str, str]],
-        ground_truths: List[str],
-    ) -> Dict[str, float]:
+        predictions: list[dict[str, str]],
+        ground_truths: list[str],
+    ) -> dict[str, float]:
         """Evaluate reasoning quality."""
         correct = 0
         has_reasoning = 0

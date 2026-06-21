@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Generator, Optional
+from collections.abc import Generator
+from typing import Any, Callable
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from flashvlm.generation.sampler import combined_sample
 
@@ -23,7 +23,7 @@ class StreamingGenerator:
         top_k: int = 50,
         top_p: float = 0.9,
         repetition_penalty: float = 1.1,
-        stop_tokens: Optional[list[int]] = None,
+        stop_tokens: list[int] | None = None,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -41,8 +41,8 @@ class StreamingGenerator:
     def generate_stream(
         self,
         input_ids: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
+        attention_mask: torch.Tensor | None = None,
+        inputs_embeds: torch.Tensor | None = None,
     ) -> Generator[str, None, None]:
         """Generate tokens one at a time, yielding decoded text chunks.
 
@@ -107,13 +107,9 @@ class StreamingGenerator:
             if next_token.item() in self.stop_tokens:
                 break
 
-            generated_ids = torch.cat(
-                [generated_ids, next_token.unsqueeze(0).unsqueeze(0)], dim=-1
-            )
+            generated_ids = torch.cat([generated_ids, next_token.unsqueeze(0).unsqueeze(0)], dim=-1)
 
-            token_text = self.tokenizer.decode(
-                [next_token.item()], skip_special_tokens=True
-            )
+            token_text = self.tokenizer.decode([next_token.item()], skip_special_tokens=True)
             yield token_text
 
     def generate_with_callback(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -32,20 +32,20 @@ class Benchmark:
         model: nn.Module,
         dataset: str = "vqav2",
         split: str = "val",
-        data_path: Optional[str] = None,
+        data_path: str | None = None,
     ):
         self.model = model
         self.dataset = dataset
         self.split = split
         self.data_path = data_path
-        self.results: Dict[str, Any] = {}
+        self.results: dict[str, Any] = {}
 
     def run(
         self,
         batch_size: int = 8,
-        max_samples: Optional[int] = None,
+        max_samples: int | None = None,
         verbose: bool = True,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Run the benchmark evaluation.
 
         Args:
@@ -77,7 +77,7 @@ class Benchmark:
         self.results = metrics
         return metrics
 
-    def _load_benchmark_data(self, max_samples: Optional[int]) -> List[Dict[str, Any]]:
+    def _load_benchmark_data(self, max_samples: int | None) -> list[dict[str, Any]]:
         """Load benchmark dataset."""
         if self.data_path:
             path = Path(self.data_path)
@@ -95,10 +95,10 @@ class Benchmark:
 
     def _generate_predictions(
         self,
-        samples: List[Dict[str, Any]],
+        samples: list[dict[str, Any]],
         batch_size: int,
         verbose: bool,
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate model predictions for benchmark samples."""
         predictions = []
         iterator = range(0, len(samples), batch_size)
@@ -108,7 +108,7 @@ class Benchmark:
         self.model.eval()
         with torch.no_grad():
             for i in iterator:
-                batch = samples[i:i + batch_size]
+                batch = samples[i : i + batch_size]
                 for sample in batch:
                     question = sample.get("question", "")
                     image = sample.get("image")
@@ -116,9 +116,7 @@ class Benchmark:
                     if hasattr(self.model, "ask"):
                         pred = self.model.ask(question, image=image, max_new_tokens=32)
                     elif hasattr(self.model, "generate"):
-                        pred = self.model.generate(
-                            prompt=question, image=image, max_new_tokens=32
-                        )
+                        pred = self.model.generate(prompt=question, image=image, max_new_tokens=32)
                     else:
                         pred = ""
                     predictions.append(pred)
@@ -127,9 +125,9 @@ class Benchmark:
 
     def _compute_metrics(
         self,
-        predictions: List[str],
-        samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         """Compute evaluation metrics based on dataset type."""
         from flashvlm.analytics.metrics import vqa_accuracy
 
@@ -146,7 +144,7 @@ class Benchmark:
         accuracy = vqa_accuracy(predictions, ground_truths)
         return {"accuracy": round(accuracy, 4)}
 
-    def _run_synthetic_benchmark(self) -> Dict[str, float]:
+    def _run_synthetic_benchmark(self) -> dict[str, float]:
         """Run a synthetic performance benchmark when no data is available."""
         print("Running performance benchmark (latency, throughput)...")
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -11,10 +10,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 def draw_bbox(
-    image: Union[str, Path, Image.Image],
-    boxes: List[List[float]],
-    labels: Optional[List[str]] = None,
-    colors: Optional[List[str]] = None,
+    image: str | Path | Image.Image,
+    boxes: list[list[float]],
+    labels: list[str] | None = None,
+    colors: list[str] | None = None,
     line_width: int = 3,
     font_size: int = 16,
 ) -> Image.Image:
@@ -43,7 +42,7 @@ def draw_bbox(
 
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
-    except (IOError, OSError):
+    except OSError:
         font = ImageFont.load_default()
 
     for i, box in enumerate(boxes):
@@ -52,7 +51,7 @@ def draw_bbox(
             x1, x2 = x1 * width, x2 * width
             y1, y2 = y1 * height, y2 * height
 
-        color = (colors[i] if colors else default_colors[i % len(default_colors)])
+        color = colors[i] if colors else default_colors[i % len(default_colors)]
         draw.rectangle([x1, y1, x2, y2], outline=color, width=line_width)
 
         if labels and i < len(labels):
@@ -65,8 +64,8 @@ def draw_bbox(
 
 
 def visualize_attention(
-    image: Union[str, Path, Image.Image],
-    attention_map: Union[np.ndarray, torch.Tensor],
+    image: str | Path | Image.Image,
+    attention_map: np.ndarray | torch.Tensor,
     alpha: float = 0.5,
     colormap: str = "jet",
 ) -> Image.Image:
@@ -91,7 +90,7 @@ def visualize_attention(
 
     if attention_map.ndim == 1:
         side = int(np.sqrt(attention_map.shape[0]))
-        attention_map = attention_map[:side * side].reshape(side, side)
+        attention_map = attention_map[: side * side].reshape(side, side)
 
     attn_min = attention_map.min()
     attn_max = attention_map.max()
@@ -113,10 +112,10 @@ def visualize_attention(
 
 
 def create_comparison_grid(
-    images: List[Image.Image],
-    captions: Optional[List[str]] = None,
+    images: list[Image.Image],
+    captions: list[str] | None = None,
     cols: int = 4,
-    cell_size: Tuple[int, int] = (256, 256),
+    cell_size: tuple[int, int] = (256, 256),
     padding: int = 8,
 ) -> Image.Image:
     """Create a grid of images for comparison.
@@ -142,7 +141,7 @@ def create_comparison_grid(
 
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except (IOError, OSError):
+    except OSError:
         font = ImageFont.load_default()
 
     for idx, img in enumerate(images):

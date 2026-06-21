@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from flashvlm.cfg.config import FlashVLMConfig
-from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.models.projector import QFormerProjector
+from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.registry import MODELS
 
 
@@ -23,7 +22,11 @@ class VisualPositionEncoding(nn.Module):
         self.col_embed = nn.Embedding(max_patches, hidden_size // 2)
         self.spatial_proj = nn.Linear(hidden_size, hidden_size)
 
-    def forward(self, visual_tokens: torch.Tensor, image_size: Tuple[int, int] = (24, 24)) -> torch.Tensor:
+    def forward(
+        self,
+        visual_tokens: torch.Tensor,
+        image_size: tuple[int, int] = (24, 24),
+    ) -> torch.Tensor:
         h, w = image_size
         batch_size, num_tokens, hidden = visual_tokens.shape
 
@@ -69,7 +72,9 @@ class QwenVLArchitecture(nn.Module):
             max_patches=(config.vision.image_size // config.vision.patch_size) ** 2,
         )
 
-        self.visual_start_token = nn.Parameter(torch.randn(1, 1, config.language.hidden_size) * 0.02)
+        self.visual_start_token = nn.Parameter(
+            torch.randn(1, 1, config.language.hidden_size) * 0.02,
+        )
         self.visual_end_token = nn.Parameter(torch.randn(1, 1, config.language.hidden_size) * 0.02)
         self.language_model = None
 
@@ -92,11 +97,11 @@ class QwenVLArchitecture(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
         **kwargs: Any,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Forward pass for Qwen-VL."""
         if pixel_values is not None:
             visual_tokens = self.encode_images(pixel_values)
@@ -114,8 +119,14 @@ class QwenVLArchitecture(nn.Module):
             outputs = self.language_model(inputs_embeds=inputs_embeds, labels=labels)
             return {"loss": outputs.loss, "logits": outputs.logits}
 
-        logits = visual_tokens if visual_tokens is not None else torch.zeros(
-            input_ids.shape[0], input_ids.shape[1], self.config.language.hidden_size,
-            device=input_ids.device,
+        logits = (
+            visual_tokens
+            if visual_tokens is not None
+            else torch.zeros(
+                input_ids.shape[0],
+                input_ids.shape[1],
+                self.config.language.hidden_size,
+                device=input_ids.device,
+            )
         )
         return {"loss": None, "logits": logits}

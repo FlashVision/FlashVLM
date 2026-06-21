@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Dict, List, Optional
 
 
 def vqa_accuracy(
-    predictions: List[str],
-    ground_truths: List[List[str]],
+    predictions: list[str],
+    ground_truths: list[list[str]],
     num_annotators: int = 10,
 ) -> float:
     """Compute VQA accuracy following the standard VQAv2 metric.
@@ -39,10 +38,10 @@ def vqa_accuracy(
 
 
 def compute_bleu(
-    predictions: List[str],
-    references: List[List[str]],
+    predictions: list[str],
+    references: list[list[str]],
     max_n: int = 4,
-    weights: Optional[List[float]] = None,
+    weights: list[float] | None = None,
 ) -> float:
     """Compute BLEU score (up to n-gram).
 
@@ -86,10 +85,13 @@ def compute_bleu(
 
             if n == 1:
                 bp_c += len(pred_tokens)
-                best_ref_len = min(
-                    (abs(len(pred_tokens) - len(ref.split())), len(ref.split()))
-                    for ref in refs
-                )[1] if refs else 0
+                best_ref_len = (
+                    min(
+                        (abs(len(pred_tokens) - len(ref.split())), len(ref.split())) for ref in refs
+                    )[1]
+                    if refs
+                    else 0
+                )
                 bp_r += best_ref_len
 
         precision = matches / max(total, 1)
@@ -109,8 +111,8 @@ def compute_bleu(
 
 
 def compute_cider(
-    predictions: List[str],
-    references: List[List[str]],
+    predictions: list[str],
+    references: list[list[str]],
     n: int = 4,
 ) -> float:
     """Compute CIDEr-D score (simplified implementation).
@@ -156,8 +158,8 @@ def compute_cider(
 
 
 def compute_meteor(
-    predictions: List[str],
-    references: List[List[str]],
+    predictions: list[str],
+    references: list[list[str]],
 ) -> float:
     """Compute METEOR score (simplified word-matching version).
 
@@ -205,32 +207,39 @@ def _normalize_answer(answer: str) -> str:
     answer = answer.lower().strip()
     answer = answer.rstrip(".")
     number_words = {
-        "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+        "zero": "0",
+        "one": "1",
+        "two": "2",
+        "three": "3",
+        "four": "4",
+        "five": "5",
+        "six": "6",
+        "seven": "7",
+        "eight": "8",
+        "nine": "9",
+        "ten": "10",
     }
     for word, digit in number_words.items():
         answer = answer.replace(word, digit)
     articles = ["a ", "an ", "the "]
     for article in articles:
         if answer.startswith(article):
-            answer = answer[len(article):]
+            answer = answer[len(article) :]
     return answer.strip()
 
 
-def _get_ngrams(tokens: List[str], n: int) -> Counter:
+def _get_ngrams(tokens: list[str], n: int) -> Counter:
     """Extract n-grams from a token list."""
     ngrams: Counter = Counter()
     for i in range(len(tokens) - n + 1):
-        ngram = tuple(tokens[i:i + n])
+        ngram = tuple(tokens[i : i + n])
         ngrams[ngram] += 1
     return ngrams
 
 
-def _compute_tfidf(
-    tokens: List[str], df: Counter, num_docs: int, max_n: int
-) -> Dict[tuple, float]:
+def _compute_tfidf(tokens: list[str], df: Counter, num_docs: int, max_n: int) -> dict[tuple, float]:
     """Compute TF-IDF vector for CIDEr."""
-    vec: Dict[tuple, float] = {}
+    vec: dict[tuple, float] = {}
     for n in range(1, max_n + 1):
         ngrams = _get_ngrams(tokens, n)
         for ngram, tf in ngrams.items():
@@ -239,18 +248,18 @@ def _compute_tfidf(
     return vec
 
 
-def _cosine_similarity(vec1: Dict[tuple, float], vec2: Dict[tuple, float]) -> float:
+def _cosine_similarity(vec1: dict[tuple, float], vec2: dict[tuple, float]) -> float:
     """Compute cosine similarity between two sparse vectors."""
     keys = set(vec1.keys()) | set(vec2.keys())
     dot = sum(vec1.get(k, 0) * vec2.get(k, 0) for k in keys)
-    norm1 = math.sqrt(sum(v ** 2 for v in vec1.values()))
-    norm2 = math.sqrt(sum(v ** 2 for v in vec2.values()))
+    norm1 = math.sqrt(sum(v**2 for v in vec1.values()))
+    norm2 = math.sqrt(sum(v**2 for v in vec2.values()))
     if norm1 == 0 or norm2 == 0:
         return 0.0
     return dot / (norm1 * norm2)
 
 
-def _count_chunks(pred_tokens: List[str], ref_tokens: List[str], matches: set) -> int:
+def _count_chunks(pred_tokens: list[str], ref_tokens: list[str], matches: set) -> int:
     """Count contiguous matched chunks for METEOR penalty."""
     in_chunk = False
     chunks = 0

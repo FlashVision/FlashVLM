@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -29,13 +29,14 @@ class DocumentQA:
     def _load_model(self) -> None:
         try:
             from flashvlm.models.vlm import FlashVLM
+
             self.model = FlashVLM.from_pretrained(self.model_name, device=self.device)
         except Exception as e:
             print(f"Warning: Could not load model: {e}")
 
     def ask(
         self,
-        document: Union[str, Path, Image.Image, List[Image.Image]],
+        document: str | Path | Image.Image | list[Image.Image],
         question: str,
         **kwargs: Any,
     ) -> str:
@@ -69,10 +70,10 @@ class DocumentQA:
 
     def extract_info(
         self,
-        document: Union[str, Path, Image.Image],
-        fields: List[str],
+        document: str | Path | Image.Image,
+        fields: list[str],
         **kwargs: Any,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Extract specific fields from a document.
 
         Args:
@@ -90,14 +91,18 @@ class DocumentQA:
 
         if self.model is not None:
             response = self.model.generate(
-                prompt=prompt, image=document, max_new_tokens=self.max_tokens, temperature=0.1, **kwargs,
+                prompt=prompt,
+                image=document,
+                max_new_tokens=self.max_tokens,
+                temperature=0.1,
+                **kwargs,
             )
             return self._parse_fields(response, fields)
         return {field: "" for field in fields}
 
     def summarize(
         self,
-        document: Union[str, Path, Image.Image],
+        document: str | Path | Image.Image,
         max_length: int = 200,
         **kwargs: Any,
     ) -> str:
@@ -110,17 +115,24 @@ class DocumentQA:
         Returns:
             Summary text.
         """
-        prompt = "Provide a concise summary of this document, covering the main points and key information."
+        prompt = (
+            "Provide a concise summary of this document, "
+            "covering the main points and key information."
+        )
 
         if self.model is not None:
             return self.model.generate(
-                prompt=prompt, image=document, max_new_tokens=max_length, temperature=0.3, **kwargs,
+                prompt=prompt,
+                image=document,
+                max_new_tokens=max_length,
+                temperature=0.3,
+                **kwargs,
             )
         return "[Model not loaded]"
 
     def _multi_page_qa(
         self,
-        pages: List[Image.Image],
+        pages: list[Image.Image],
         question: str,
         **kwargs: Any,
     ) -> str:
@@ -133,7 +145,11 @@ class DocumentQA:
             )
             if self.model is not None:
                 resp = self.model.generate(
-                    prompt=prompt, image=page, max_new_tokens=200, temperature=0.1, **kwargs,
+                    prompt=prompt,
+                    image=page,
+                    max_new_tokens=200,
+                    temperature=0.1,
+                    **kwargs,
                 )
                 page_responses.append(f"Page {i + 1}: {resp}")
 
@@ -145,11 +161,13 @@ class DocumentQA:
 
         if self.model is not None:
             return self.model.generate(
-                prompt=final_prompt, max_new_tokens=self.max_tokens, temperature=0.1,
+                prompt=final_prompt,
+                max_new_tokens=self.max_tokens,
+                temperature=0.1,
             )
         return "[Model not loaded]"
 
-    def _parse_fields(self, response: str, fields: List[str]) -> Dict[str, str]:
+    def _parse_fields(self, response: str, fields: list[str]) -> dict[str, str]:
         """Parse field-value pairs from model response."""
         result = {field: "" for field in fields}
         for line in response.split("\n"):

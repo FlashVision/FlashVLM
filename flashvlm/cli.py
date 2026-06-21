@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 import flashvlm
 
@@ -49,7 +48,12 @@ def get_parser() -> argparse.ArgumentParser:
     caption_parser.add_argument("--image", type=str, required=True, help="Image path or URL")
     caption_parser.add_argument("--model", type=str, default="llava-v1.5-7b", help="Model name")
     caption_parser.add_argument("--max-tokens", type=int, default=100, help="Max tokens")
-    caption_parser.add_argument("--detail", type=str, default="brief", choices=["brief", "detailed"])
+    caption_parser.add_argument(
+        "--detail",
+        type=str,
+        default="brief",
+        choices=["brief", "detailed"],
+    )
 
     # vqa
     vqa_parser = subparsers.add_parser("vqa", help="Visual Question Answering")
@@ -61,7 +65,12 @@ def get_parser() -> argparse.ArgumentParser:
     # export
     export_parser = subparsers.add_parser("export", help="Export model to deployment format")
     export_parser.add_argument("--model", type=str, required=True, help="Model name/path")
-    export_parser.add_argument("--format", type=str, default="onnx", choices=["onnx", "torchscript", "safetensors"])
+    export_parser.add_argument(
+        "--format",
+        type=str,
+        default="onnx",
+        choices=["onnx", "torchscript", "safetensors"],
+    )
     export_parser.add_argument("--output", type=str, default="exported_model", help="Output path")
     export_parser.add_argument("--quantize", action="store_true", help="Apply quantization")
 
@@ -81,6 +90,7 @@ def cmd_version(args: argparse.Namespace) -> None:
     print(f"Python: {sys.version.split()[0]}")
     try:
         import torch
+
         print(f"PyTorch: {torch.__version__}")
         print(f"CUDA available: {torch.cuda.is_available()}")
         if torch.cuda.is_available():
@@ -90,6 +100,7 @@ def cmd_version(args: argparse.Namespace) -> None:
         print("PyTorch: Not installed")
     try:
         import transformers
+
         print(f"Transformers: {transformers.__version__}")
     except ImportError:
         print("Transformers: Not installed")
@@ -116,6 +127,7 @@ def cmd_check(args: argparse.Namespace) -> None:
 
     try:
         import torch
+
         checks.append(("PyTorch", True, torch.__version__))
         checks.append(("CUDA", torch.cuda.is_available(), torch.version.cuda or "N/A"))
     except ImportError:
@@ -124,24 +136,28 @@ def cmd_check(args: argparse.Namespace) -> None:
 
     try:
         import transformers
+
         checks.append(("Transformers", True, transformers.__version__))
     except ImportError:
         checks.append(("Transformers", False, "Not installed"))
 
     try:
         import PIL
+
         checks.append(("Pillow", True, PIL.__version__))
     except ImportError:
         checks.append(("Pillow", False, "Not installed"))
 
     try:
         import safetensors
+
         checks.append(("Safetensors", True, safetensors.__version__))
     except ImportError:
         checks.append(("Safetensors", False, "Not installed"))
 
     try:
         import peft
+
         checks.append(("PEFT (LoRA)", True, peft.__version__))
     except ImportError:
         checks.append(("PEFT (LoRA)", False, "Not installed (optional)"))
@@ -160,8 +176,8 @@ def cmd_check(args: argparse.Namespace) -> None:
 
 def cmd_train(args: argparse.Namespace) -> None:
     from flashvlm.cfg.config import get_config
-    from flashvlm.models.vlm import FlashVLM
     from flashvlm.engine.trainer import Trainer
+    from flashvlm.models.vlm import FlashVLM
 
     config = get_config(args.config)
     if args.epochs is not None:
@@ -225,7 +241,10 @@ def cmd_caption(args: argparse.Namespace) -> None:
     print(f"Loading model: {args.model}")
     model = FlashVLM.from_pretrained(args.model)
 
-    prompt = "Describe this image in detail." if args.detail == "detailed" else "Describe this image briefly."
+    if args.detail == "detailed":
+        prompt = "Describe this image in detail."
+    else:
+        prompt = "Describe this image briefly."
     caption = model.generate(
         image=args.image,
         prompt=prompt,
@@ -277,6 +296,7 @@ def cmd_benchmark(args: argparse.Namespace) -> None:
 
     if args.output:
         import json
+
         Path(args.output).write_text(json.dumps(results, indent=2))
         print(f"\nResults saved to: {args.output}")
 

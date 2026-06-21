@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Set
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from flashvlm.cfg.config import LoRAConfig
 
@@ -78,7 +76,7 @@ def apply_lora(
     rank: int = 16,
     alpha: int = 32,
     dropout: float = 0.05,
-    target_modules: Optional[List[str]] = None,
+    target_modules: list[str] | None = None,
 ) -> nn.Module:
     """Apply LoRA adapters to target modules in a model.
 
@@ -96,7 +94,7 @@ def apply_lora(
     if target_modules is None:
         target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
 
-    target_set: Set[str] = set(target_modules)
+    target_set: set[str] = set(target_modules)
     replaced = 0
 
     for name, module in list(model.named_modules()):
@@ -110,9 +108,7 @@ def apply_lora(
                     for part in parent_name.split("."):
                         parent = getattr(parent, part)
 
-                lora_layer = LoRALinear.from_linear(
-                    module, rank=rank, alpha=alpha, dropout=dropout
-                )
+                lora_layer = LoRALinear.from_linear(module, rank=rank, alpha=alpha, dropout=dropout)
                 setattr(parent, child_name, lora_layer)
                 replaced += 1
                 break

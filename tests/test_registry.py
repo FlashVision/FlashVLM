@@ -2,7 +2,7 @@
 
 import pytest
 
-from flashvlm.registry import Registry, MODELS, VISION_ENCODERS, PROJECTORS, TASKS, DATASETS
+from flashvlm.registry import DATASETS, MODELS, PROJECTORS, TASKS, VISION_ENCODERS, Registry
 
 
 class TestRegistry:

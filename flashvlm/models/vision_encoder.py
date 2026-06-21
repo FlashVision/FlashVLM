@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -29,17 +27,19 @@ class VisionEncoder(nn.Module):
         return (self.image_size // self.config.patch_size) ** 2
 
     def get_transform(self) -> transforms.Compose:
-        return transforms.Compose([
-            transforms.Resize(
-                (self.image_size, self.image_size),
-                interpolation=transforms.InterpolationMode.BICUBIC,
-            ),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.48145466, 0.4578275, 0.40821073],
-                std=[0.26862954, 0.26130258, 0.27577711],
-            ),
-        ])
+        return transforms.Compose(
+            [
+                transforms.Resize(
+                    (self.image_size, self.image_size),
+                    interpolation=transforms.InterpolationMode.BICUBIC,
+                ),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.48145466, 0.4578275, 0.40821073],
+                    std=[0.26862954, 0.26130258, 0.27577711],
+                ),
+            ]
+        )
 
 
 @VISION_ENCODERS.register("clip")
@@ -50,6 +50,7 @@ class CLIPVisionEncoder(VisionEncoder):
         super().__init__(config)
         try:
             from transformers import CLIPVisionModel
+
             self.model = CLIPVisionModel.from_pretrained(
                 config.encoder_name, torch_dtype=torch.float16
             )
@@ -63,7 +64,12 @@ class CLIPVisionEncoder(VisionEncoder):
     def _build_vit(self, config: VisionConfig) -> nn.Module:
         """Fallback: build a simple ViT if pretrained model unavailable."""
         return nn.Sequential(
-            nn.Conv2d(3, config.hidden_size, kernel_size=config.patch_size, stride=config.patch_size),
+            nn.Conv2d(
+                3,
+                config.hidden_size,
+                kernel_size=config.patch_size,
+                stride=config.patch_size,
+            ),
             nn.Flatten(2),
             nn.Linear(config.hidden_size, config.hidden_size),
             nn.LayerNorm(config.hidden_size),
@@ -84,12 +90,18 @@ class SigLIPVisionEncoder(VisionEncoder):
         super().__init__(config)
         try:
             from transformers import SiglipVisionModel
+
             self.model = SiglipVisionModel.from_pretrained(
                 config.encoder_name, torch_dtype=torch.float16
             )
         except Exception:
             self.model = nn.Sequential(
-                nn.Conv2d(3, config.hidden_size, kernel_size=config.patch_size, stride=config.patch_size),
+                nn.Conv2d(
+                    3,
+                    config.hidden_size,
+                    kernel_size=config.patch_size,
+                    stride=config.patch_size,
+                ),
                 nn.Flatten(2),
             )
 
@@ -116,7 +128,12 @@ class DINOv2VisionEncoder(VisionEncoder):
             self.model = torch.hub.load("facebookresearch/dinov2", "dinov2_vitl14")
         except Exception:
             self.model = nn.Sequential(
-                nn.Conv2d(3, config.hidden_size, kernel_size=config.patch_size, stride=config.patch_size),
+                nn.Conv2d(
+                    3,
+                    config.hidden_size,
+                    kernel_size=config.patch_size,
+                    stride=config.patch_size,
+                ),
                 nn.Flatten(2),
             )
 
@@ -134,14 +151,16 @@ class DINOv2VisionEncoder(VisionEncoder):
         return self.model[1](x).transpose(1, 2)
 
     def get_transform(self) -> transforms.Compose:
-        return transforms.Compose([
-            transforms.Resize(
-                (self.image_size, self.image_size),
-                interpolation=transforms.InterpolationMode.BICUBIC,
-            ),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        return transforms.Compose(
+            [
+                transforms.Resize(
+                    (self.image_size, self.image_size),
+                    interpolation=transforms.InterpolationMode.BICUBIC,
+                ),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
 
 def build_vision_encoder(config: VisionConfig) -> VisionEncoder:

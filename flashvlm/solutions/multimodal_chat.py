@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -20,7 +20,7 @@ class MultimodalChat:
         device: str = "auto",
         max_tokens: int = 512,
         temperature: float = 0.7,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
     ):
         self.model_name = model_name
         self.device = device
@@ -31,8 +31,8 @@ class MultimodalChat:
             "answer questions about them, and engage in natural conversation."
         )
 
-        self.conversation_history: List[Dict[str, Any]] = []
-        self.images: List[Any] = []
+        self.conversation_history: list[dict[str, Any]] = []
+        self.images: list[Any] = []
         self.model = None
         self._load_model()
 
@@ -40,12 +40,13 @@ class MultimodalChat:
         """Load the VLM model."""
         try:
             from flashvlm.models.vlm import FlashVLM
+
             self.model = FlashVLM.from_pretrained(self.model_name, device=self.device)
         except Exception as e:
             print(f"Warning: Could not load model '{self.model_name}': {e}")
             self.model = None
 
-    def add_image(self, image: Union[str, Path, Image.Image]) -> None:
+    def add_image(self, image: str | Path | Image.Image) -> None:
         """Add an image to the current conversation context.
 
         Args:
@@ -57,11 +58,13 @@ class MultimodalChat:
                 image = Image.open(path).convert("RGB")
 
         self.images.append(image)
-        self.conversation_history.append({
-            "role": "user",
-            "type": "image",
-            "content": f"[Image added: {len(self.images)}]",
-        })
+        self.conversation_history.append(
+            {
+                "role": "user",
+                "type": "image",
+                "content": f"[Image added: {len(self.images)}]",
+            }
+        )
 
     def send(self, message: str, **kwargs: Any) -> str:
         """Send a message and get a response.
@@ -72,11 +75,13 @@ class MultimodalChat:
         Returns:
             Assistant's response text.
         """
-        self.conversation_history.append({
-            "role": "user",
-            "type": "text",
-            "content": message,
-        })
+        self.conversation_history.append(
+            {
+                "role": "user",
+                "type": "text",
+                "content": message,
+            }
+        )
 
         prompt = self._build_prompt()
         current_image = self.images[-1] if self.images else None
@@ -92,11 +97,13 @@ class MultimodalChat:
         else:
             response = f"[Model not loaded. Would respond to: {message}]"
 
-        self.conversation_history.append({
-            "role": "assistant",
-            "type": "text",
-            "content": response,
-        })
+        self.conversation_history.append(
+            {
+                "role": "assistant",
+                "type": "text",
+                "content": response,
+            }
+        )
 
         return response
 
@@ -120,7 +127,7 @@ class MultimodalChat:
         self.conversation_history = []
         self.images = []
 
-    def get_history(self) -> List[Dict[str, Any]]:
+    def get_history(self) -> list[dict[str, Any]]:
         """Get the full conversation history."""
         return self.conversation_history.copy()
 
@@ -131,4 +138,6 @@ class MultimodalChat:
     @property
     def num_turns(self) -> int:
         """Number of conversation turns."""
-        return sum(1 for t in self.conversation_history if t["role"] == "user" and t["type"] == "text")
+        return sum(
+            1 for t in self.conversation_history if t["role"] == "user" and t["type"] == "text"
+        )

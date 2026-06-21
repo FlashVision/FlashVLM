@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
-import torch
 from PIL import Image
 
 from flashvlm.registry import TASKS
@@ -19,7 +18,7 @@ class UIElement:
 
     element_type: str
     text: str = ""
-    bbox: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    bbox: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     confidence: float = 0.0
     element_id: int = 0
     interactable: bool = True
@@ -30,8 +29,8 @@ class GUIAction:
     """Represents an action to take on a GUI element."""
 
     action_type: str
-    target: Optional[UIElement] = None
-    coordinates: Tuple[float, float] = (0.0, 0.0)
+    target: UIElement | None = None
+    coordinates: tuple[float, float] = (0.0, 0.0)
     text_input: str = ""
     reasoning: str = ""
 
@@ -47,7 +46,16 @@ class GUIAgentTask:
     - Multi-step task planning on GUI interfaces
     """
 
-    ACTION_TYPES = ["click", "type", "scroll_up", "scroll_down", "hover", "drag", "select", "press_key"]
+    ACTION_TYPES = [
+        "click",
+        "type",
+        "scroll_up",
+        "scroll_down",
+        "hover",
+        "drag",
+        "select",
+        "press_key",
+    ]
 
     PROMPTS = {
         "describe_screen": (
@@ -89,7 +97,7 @@ class GUIAgentTask:
         model: Any,
         max_new_tokens: int = 512,
         temperature: float = 0.1,
-        screen_size: Tuple[int, int] = (1920, 1080),
+        screen_size: tuple[int, int] = (1920, 1080),
     ):
         self.model = model
         self.max_new_tokens = max_new_tokens
@@ -97,20 +105,23 @@ class GUIAgentTask:
         self.screen_size = screen_size
 
     def describe_screen(
-        self, screenshot: Union[str, Path, Image.Image], **kwargs: Any,
+        self,
+        screenshot: str | Path | Image.Image,
+        **kwargs: Any,
     ) -> str:
         """Describe the contents and layout of a screenshot."""
         result = self.model.generate(
             prompt=self.PROMPTS["describe_screen"],
             image=screenshot,
             max_new_tokens=self.max_new_tokens,
-            temperature=0.3, **kwargs,
+            temperature=0.3,
+            **kwargs,
         )
         return result.strip()
 
     def ground_element(
         self,
-        screenshot: Union[str, Path, Image.Image],
+        screenshot: str | Path | Image.Image,
         element_description: str,
         **kwargs: Any,
     ) -> UIElement:
@@ -127,8 +138,11 @@ class GUIAgentTask:
             element_description=element_description,
         )
         response = self.model.generate(
-            prompt=prompt, image=screenshot,
-            max_new_tokens=128, temperature=0.05, **kwargs,
+            prompt=prompt,
+            image=screenshot,
+            max_new_tokens=128,
+            temperature=0.05,
+            **kwargs,
         )
         bbox = self._parse_bbox(response)
         return UIElement(
@@ -140,9 +154,9 @@ class GUIAgentTask:
 
     def predict_action(
         self,
-        screenshot: Union[str, Path, Image.Image],
+        screenshot: str | Path | Image.Image,
         task: str,
-        history: Optional[List[GUIAction]] = None,
+        history: list[GUIAction] | None = None,
         **kwargs: Any,
     ) -> GUIAction:
         """Predict the next GUI action to accomplish a task.
@@ -157,29 +171,34 @@ class GUIAgentTask:
         """
         action_types_str = ", ".join(self.ACTION_TYPES)
         prompt = self.PROMPTS["predict_action"].format(
-            task=task, action_types=action_types_str,
+            task=task,
+            action_types=action_types_str,
         )
 
         if history:
             history_str = "\n".join(
-                f"  Step {i+1}: {a.action_type} at ({a.coordinates[0]:.2f}, {a.coordinates[1]:.2f})"
+                f"  Step {i + 1}: {a.action_type} at "
+                f"({a.coordinates[0]:.2f}, {a.coordinates[1]:.2f})"
                 + (f' "{a.text_input}"' if a.text_input else "")
                 for i, a in enumerate(history)
             )
             prompt = f"Previous actions:\n{history_str}\n\n{prompt}"
 
         response = self.model.generate(
-            prompt=prompt, image=screenshot,
-            max_new_tokens=256, temperature=0.1, **kwargs,
+            prompt=prompt,
+            image=screenshot,
+            max_new_tokens=256,
+            temperature=0.1,
+            **kwargs,
         )
         return self._parse_action(response)
 
     def plan_task(
         self,
-        screenshot: Union[str, Path, Image.Image],
+        screenshot: str | Path | Image.Image,
         task: str,
         **kwargs: Any,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Plan multi-step actions to accomplish a task.
 
         Args:
@@ -191,17 +210,19 @@ class GUIAgentTask:
         """
         prompt = self.PROMPTS["plan_steps"].format(task=task)
         response = self.model.generate(
-            prompt=prompt, image=screenshot,
+            prompt=prompt,
+            image=screenshot,
             max_new_tokens=self.max_new_tokens,
-            temperature=0.2, **kwargs,
+            temperature=0.2,
+            **kwargs,
         )
         return self._parse_plan(response)
 
     def identify_elements(
         self,
-        screenshot: Union[str, Path, Image.Image],
+        screenshot: str | Path | Image.Image,
         **kwargs: Any,
-    ) -> List[UIElement]:
+    ) -> list[UIElement]:
         """Identify interactive elements in a screenshot.
 
         Returns:
@@ -211,13 +232,14 @@ class GUIAgentTask:
             prompt=self.PROMPTS["identify_elements"],
             image=screenshot,
             max_new_tokens=self.max_new_tokens,
-            temperature=0.1, **kwargs,
+            temperature=0.1,
+            **kwargs,
         )
         return self._parse_elements(response)
 
     def extract_text(
         self,
-        screenshot: Union[str, Path, Image.Image],
+        screenshot: str | Path | Image.Image,
         **kwargs: Any,
     ) -> str:
         """Extract all visible text from a screenshot."""
@@ -225,33 +247,37 @@ class GUIAgentTask:
             prompt=self.PROMPTS["extract_text"],
             image=screenshot,
             max_new_tokens=self.max_new_tokens,
-            temperature=0.05, **kwargs,
+            temperature=0.05,
+            **kwargs,
         )
         return result.strip()
 
     def execute_task(
         self,
-        screenshots: List[Union[str, Path, Image.Image]],
+        screenshots: list[str | Path | Image.Image],
         task: str,
         max_steps: int = 10,
         **kwargs: Any,
-    ) -> List[GUIAction]:
+    ) -> list[GUIAction]:
         """Execute a multi-step GUI task, predicting actions iteratively.
 
         Uses the first screenshot to start, then processes subsequent
         screenshots (simulating environment feedback) step by step.
         """
-        actions: List[GUIAction] = []
+        actions: list[GUIAction] = []
         for step in range(min(max_steps, len(screenshots))):
             action = self.predict_action(
-                screenshots[step], task, history=actions, **kwargs,
+                screenshots[step],
+                task,
+                history=actions,
+                **kwargs,
             )
             actions.append(action)
             if action.action_type == "done":
                 break
         return actions
 
-    def _parse_bbox(self, response: str) -> Tuple[float, float, float, float]:
+    def _parse_bbox(self, response: str) -> tuple[float, float, float, float]:
         numbers = re.findall(r"[\d.]+", response)
         if len(numbers) >= 4:
             try:
@@ -291,20 +317,22 @@ class GUIAgentTask:
             reasoning=response.strip(),
         )
 
-    def _parse_plan(self, response: str) -> List[Dict[str, str]]:
+    def _parse_plan(self, response: str) -> list[dict[str, str]]:
         steps = []
         lines = response.strip().split("\n")
         for line in lines:
             line = line.strip()
             step_match = re.match(r"(?:\d+[\.\)]\s*)?(.+)", line)
             if step_match and line:
-                steps.append({
-                    "step": str(len(steps) + 1),
-                    "description": step_match.group(1).strip(),
-                })
+                steps.append(
+                    {
+                        "step": str(len(steps) + 1),
+                        "description": step_match.group(1).strip(),
+                    }
+                )
         return steps
 
-    def _parse_elements(self, response: str) -> List[UIElement]:
+    def _parse_elements(self, response: str) -> list[UIElement]:
         elements = []
         lines = response.strip().split("\n")
         for i, line in enumerate(lines):
@@ -323,10 +351,12 @@ class GUIAgentTask:
                 if t in line.lower():
                     elem_type = t
                     break
-            elements.append(UIElement(
-                element_type=elem_type,
-                text=line,
-                bbox=(x, y, x + 0.05, y + 0.03),
-                element_id=i,
-            ))
+            elements.append(
+                UIElement(
+                    element_type=elem_type,
+                    text=line,
+                    bbox=(x, y, x + 0.05, y + 0.03),
+                    element_id=i,
+                )
+            )
         return elements

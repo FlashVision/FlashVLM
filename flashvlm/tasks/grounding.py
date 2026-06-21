@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
-import torch
 from PIL import Image
 
 from flashvlm.registry import TASKS
@@ -39,10 +38,10 @@ class GroundingTask:
 
     def ground(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         expression: str,
         **kwargs: Any,
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Locate an object described by a text expression.
 
         Args:
@@ -64,25 +63,22 @@ class GroundingTask:
 
     def batch_ground(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        expressions: List[str],
+        images: list[str | Path | Image.Image],
+        expressions: list[str],
         **kwargs: Any,
-    ) -> List[Optional[List[float]]]:
+    ) -> list[list[float] | None]:
         """Ground multiple expressions in their respective images."""
-        return [
-            self.ground(img, expr, **kwargs)
-            for img, expr in zip(images, expressions)
-        ]
+        return [self.ground(img, expr, **kwargs) for img, expr in zip(images, expressions)]
 
     def _format_prompt(self, expression: str) -> str:
         template = self.PROMPT_TEMPLATES.get(self.prompt_style, self.PROMPT_TEMPLATES["default"])
         return template.format(expression=expression)
 
-    def _parse_bbox(self, response: str) -> Optional[List[float]]:
+    def _parse_bbox(self, response: str) -> list[float] | None:
         """Parse bounding box coordinates from model output."""
         patterns = [
-            r'\[?\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*\]?',
-            r'(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)',
+            r"\[?\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*,\s*(\d+\.?\d*)\s*\]?",
+            r"(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)",
         ]
 
         for pattern in patterns:
@@ -99,10 +95,10 @@ class GroundingTask:
 
     def evaluate(
         self,
-        predictions: List[Optional[List[float]]],
-        ground_truths: List[List[float]],
+        predictions: list[list[float] | None],
+        ground_truths: list[list[float]],
         iou_threshold: float = 0.5,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Evaluate grounding accuracy using IoU.
 
         Args:
@@ -134,7 +130,7 @@ class GroundingTask:
         }
 
     @staticmethod
-    def _compute_iou(box1: List[float], box2: List[float]) -> float:
+    def _compute_iou(box1: list[float], box2: list[float]) -> float:
         """Compute Intersection over Union between two boxes."""
         x1 = max(box1[0], box2[0])
         y1 = max(box1[1], box2[1])

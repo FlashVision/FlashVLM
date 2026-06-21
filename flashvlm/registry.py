@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable
 
 
 class Registry:
@@ -13,13 +13,13 @@ class Registry:
 
     def __init__(self, name: str):
         self._name = name
-        self._registry: Dict[str, Any] = {}
+        self._registry: dict[str, Any] = {}
 
     @property
     def name(self) -> str:
         return self._name
 
-    def register(self, name: Optional[str] = None) -> Callable:
+    def register(self, name: str | None = None) -> Callable:
         """Register a class or function with an optional custom name."""
 
         def decorator(obj: Any) -> Any:
@@ -39,8 +39,7 @@ class Registry:
         if name not in self._registry:
             available = ", ".join(sorted(self._registry.keys()))
             raise KeyError(
-                f"'{name}' not found in registry '{self._name}'. "
-                f"Available: [{available}]"
+                f"'{name}' not found in registry '{self._name}'. Available: [{available}]"
             )
         return self._registry[name]
 
@@ -71,7 +70,7 @@ DATASETS = Registry("datasets")
 TEMPLATES = Registry("templates")
 
 
-def list_available() -> Dict[str, list[str]]:
+def list_available() -> dict[str, list[str]]:
     """List all registered components across all registries."""
     return {
         "models": MODELS.list(),

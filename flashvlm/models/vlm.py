@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
 from PIL import Image
 
-from flashvlm.cfg.config import FlashVLMConfig, get_config
-from flashvlm.models.projector import build_projector, Projector
-from flashvlm.models.vision_encoder import build_vision_encoder, VisionEncoder
+from flashvlm.cfg.config import FlashVLMConfig
+from flashvlm.models.projector import Projector, build_projector
+from flashvlm.models.vision_encoder import VisionEncoder, build_vision_encoder
 from flashvlm.registry import MODELS
 
 
@@ -23,15 +23,15 @@ class FlashVLM(nn.Module):
     language model decoder for multimodal understanding and generation.
     """
 
-    def __init__(self, config: Optional[FlashVLMConfig] = None):
+    def __init__(self, config: FlashVLMConfig | None = None):
         super().__init__()
         self.config = config or FlashVLMConfig()
         self._device = torch.device("cpu")
         self._dtype = torch.float32
 
-        self.vision_encoder: Optional[VisionEncoder] = None
-        self.projector: Optional[Projector] = None
-        self.language_model: Optional[nn.Module] = None
+        self.vision_encoder: VisionEncoder | None = None
+        self.projector: Projector | None = None
+        self.language_model: nn.Module | None = None
         self.tokenizer = None
         self.image_processor = None
 
@@ -49,9 +49,7 @@ class FlashVLM(nn.Module):
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             model_name = self.config.language.model_name
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_name, trust_remote_code=True
-            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -67,7 +65,8 @@ class FlashVLM(nn.Module):
                     param.requires_grad = False
 
         except Exception as e:
-            print(f"Warning: Could not load language model '{self.config.language.model_name}': {e}")
+            model_name = self.config.language.model_name
+            print(f"Warning: Could not load language model '{model_name}': {e}")
             print("Using a placeholder embedding layer.")
             self.language_model = nn.Sequential(
                 nn.Linear(self.config.language.hidden_size, self.config.language.hidden_size),
@@ -80,7 +79,7 @@ class FlashVLM(nn.Module):
         cls,
         model_name_or_path: str,
         device: str = "auto",
-        dtype: Optional[torch.dtype] = None,
+        dtype: torch.dtype | None = None,
         **kwargs: Any,
     ) -> FlashVLM:
         """Load a pretrained FlashVLM model.
@@ -150,7 +149,7 @@ class FlashVLM(nn.Module):
         config.language.model_name = model_name_or_path
         return config
 
-    def encode_image(self, image: Union[str, Path, Image.Image, torch.Tensor]) -> torch.Tensor:
+    def encode_image(self, image: str | Path | Image.Image | torch.Tensor) -> torch.Tensor:
         """Encode an image into visual embeddings.
 
         Args:
@@ -169,8 +168,8 @@ class FlashVLM(nn.Module):
         return projected
 
     def encode_images(
-        self, images: List[Union[str, Path, Image.Image, torch.Tensor]]
-    ) -> List[torch.Tensor]:
+        self, images: list[str | Path | Image.Image | torch.Tensor]
+    ) -> list[torch.Tensor]:
         """Encode multiple images into visual embeddings.
 
         Args:
@@ -181,7 +180,7 @@ class FlashVLM(nn.Module):
         """
         return [self.encode_image(img) for img in images]
 
-    def _preprocess_image(self, image: Union[str, Path, Image.Image, torch.Tensor]) -> torch.Tensor:
+    def _preprocess_image(self, image: str | Path | Image.Image | torch.Tensor) -> torch.Tensor:
         """Convert various image inputs to a preprocessed tensor."""
         if isinstance(image, torch.Tensor):
             if image.dim() == 3:
@@ -198,7 +197,7 @@ class FlashVLM(nn.Module):
     def _interleave_multi_image_tokens(
         self,
         input_ids: torch.Tensor,
-        image_embeds_list: List[torch.Tensor],
+        image_embeds_list: list[torch.Tensor],
     ) -> torch.Tensor:
         """Replace multiple <image> tokens in the input with corresponding visual embeddings.
 
@@ -211,9 +210,9 @@ class FlashVLM(nn.Module):
             embed_layer = self.language_model[0]
 
         text_embeds = embed_layer(input_ids)
-        IMAGE_TOKEN_INDEX = -200
+        image_token_index = -200
 
-        image_positions = (input_ids[0] == IMAGE_TOKEN_INDEX).nonzero(as_tuple=True)[0]
+        image_positions = (input_ids[0] == image_token_index).nonzero(as_tuple=True)[0]
 
         if len(image_positions) == 0:
             all_visual = torch.cat(image_embeds_list, dim=1)
@@ -244,12 +243,12 @@ class FlashVLM(nn.Module):
     def generate(
         self,
         prompt: str,
-        image: Optional[Union[str, Path, Image.Image, torch.Tensor]] = None,
-        images: Optional[List[Union[str, Path, Image.Image, torch.Tensor]]] = None,
-        max_new_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        top_k: Optional[int] = None,
+        image: str | Path | Image.Image | torch.Tensor | None = None,
+        images: list[str | Path | Image.Image | torch.Tensor] | None = None,
+        max_new_tokens: int | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
+        top_k: int | None = None,
         **kwargs: Any,
     ) -> str:
         """Generate text given a prompt and optional image(s).
@@ -313,7 +312,7 @@ class FlashVLM(nn.Module):
         with torch.no_grad():
             outputs = self.language_model.generate(**gen_kwargs)
 
-        generated = outputs[0][input_ids.shape[-1]:]
+        generated = outputs[0][input_ids.shape[-1] :]
         return self.tokenizer.decode(generated, skip_special_tokens=True)
 
     def _merge_visual_text_embeddings(
@@ -332,7 +331,7 @@ class FlashVLM(nn.Module):
     def ask(
         self,
         question: str,
-        image: Optional[Union[str, Path, Image.Image, torch.Tensor]] = None,
+        image: str | Path | Image.Image | torch.Tensor | None = None,
         max_new_tokens: int = 256,
         **kwargs: Any,
     ) -> str:
@@ -351,7 +350,7 @@ class FlashVLM(nn.Module):
 
     def caption(
         self,
-        image: Union[str, Path, Image.Image, torch.Tensor],
+        image: str | Path | Image.Image | torch.Tensor,
         max_new_tokens: int = 100,
         **kwargs: Any,
     ) -> str:
@@ -391,12 +390,12 @@ class FlashVLM(nn.Module):
 
     def forward(
         self,
-        input_ids: Optional[torch.Tensor] = None,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
+        input_ids: torch.Tensor | None = None,
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
         **kwargs: Any,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Forward pass for training.
 
         Args:
@@ -423,7 +422,9 @@ class FlashVLM(nn.Module):
             inputs_embeds = torch.cat([visual_embeds, text_embeds], dim=1)
             if attention_mask is not None:
                 visual_mask = torch.ones(
-                    visual_embeds.shape[:2], device=attention_mask.device, dtype=attention_mask.dtype
+                    visual_embeds.shape[:2],
+                    device=attention_mask.device,
+                    dtype=attention_mask.dtype,
                 )
                 attention_mask = torch.cat([visual_mask, attention_mask], dim=1)
             if labels is not None:
@@ -445,9 +446,11 @@ class FlashVLM(nn.Module):
             except (TypeError, AttributeError):
                 pass
 
-        logits = self.language_model(inputs_embeds) if isinstance(
-            self.language_model, nn.Sequential
-        ) else inputs_embeds
+        logits = (
+            self.language_model(inputs_embeds)
+            if isinstance(self.language_model, nn.Sequential)
+            else inputs_embeds
+        )
 
         loss = None
         if labels is not None:
@@ -459,7 +462,7 @@ class FlashVLM(nn.Module):
 
         return {"loss": loss, "logits": logits}
 
-    def save_pretrained(self, path: Union[str, Path]) -> None:
+    def save_pretrained(self, path: str | Path) -> None:
         """Save model weights and config to a directory."""
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)

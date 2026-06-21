@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -89,7 +89,7 @@ class RLHFTrainer:
     def compute_rewards(
         self,
         responses: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
+        pixel_values: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute rewards for generated responses."""
         with torch.no_grad():
@@ -118,7 +118,7 @@ class RLHFTrainer:
         advantages: torch.Tensor,
         values: torch.Tensor,
         returns: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Compute PPO loss with clipping.
 
         Args:
@@ -157,7 +157,7 @@ class RLHFTrainer:
         self,
         rewards: torch.Tensor,
         values: torch.Tensor,
-        dones: Optional[torch.Tensor] = None,
+        dones: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute Generalized Advantage Estimation.
 
@@ -183,7 +183,9 @@ class RLHFTrainer:
                 next_value = values[:, t + 1]
 
             delta = rewards[:, t] + self.gamma * next_value * (1 - dones[:, t]) - values[:, t]
-            advantages[:, t] = last_gae = delta + self.gamma * self.lam * (1 - dones[:, t]) * last_gae
+            advantages[:, t] = last_gae = (
+                delta + self.gamma * self.lam * (1 - dones[:, t]) * last_gae
+            )
 
         returns = advantages + values
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
@@ -192,11 +194,11 @@ class RLHFTrainer:
 
     def train(
         self,
-        train_dataloader: Optional[DataLoader] = None,
+        train_dataloader: DataLoader | None = None,
         epochs: int = 1,
         ppo_epochs: int = 4,
         learning_rate: float = 1e-6,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run RLHF training with PPO.
 
         Args:
@@ -208,12 +210,12 @@ class RLHFTrainer:
         Returns:
             Training metrics.
         """
-        optimizer = torch.optim.AdamW(
+        torch.optim.AdamW(
             list(self.policy.parameters()) + list(self.value_head.parameters()),
             lr=learning_rate,
         )
 
-        metrics: Dict[str, List[float]] = {"rewards": [], "policy_loss": [], "kl": []}
+        metrics: dict[str, list[float]] = {"rewards": [], "policy_loss": [], "kl": []}
 
         if train_dataloader is None:
             print("No dataloader provided. RLHF requires prompt data.")
@@ -223,11 +225,12 @@ class RLHFTrainer:
             epoch_rewards = []
 
             for batch in tqdm(train_dataloader, desc=f"RLHF Epoch {epoch + 1}"):
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                batch = {
+                    k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                    for k, v in batch.items()
+                }
 
-                rewards = self.compute_rewards(
-                    batch["input_ids"], batch.get("pixel_values")
-                )
+                rewards = self.compute_rewards(batch["input_ids"], batch.get("pixel_values"))
                 epoch_rewards.append(rewards.mean().item())
 
             avg_reward = sum(epoch_rewards) / max(len(epoch_rewards), 1)

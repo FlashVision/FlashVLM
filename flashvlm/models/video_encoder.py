@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import math
-from typing import Any, Optional, Tuple, Union
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from flashvlm.cfg.config import VisionConfig
-from flashvlm.models.vision_encoder import VisionEncoder, build_vision_encoder
+from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.registry import VISION_ENCODERS
 
 
@@ -24,8 +20,10 @@ class TemporalPooling(nn.Module):
 
         if pool_type == "attention":
             self.temporal_attn = nn.MultiheadAttention(
-                embed_dim=hidden_size, num_heads=num_heads,
-                dropout=0.1, batch_first=True,
+                embed_dim=hidden_size,
+                num_heads=num_heads,
+                dropout=0.1,
+                batch_first=True,
             )
             self.temporal_norm = nn.LayerNorm(hidden_size)
             self.temporal_ffn = nn.Sequential(
@@ -48,7 +46,7 @@ class TemporalPooling(nn.Module):
         Returns:
             Pooled features (B, num_output_tokens, hidden).
         """
-        B, T, N, D = frame_features.shape
+        B, T, N, D = frame_features.shape  # noqa: N806
 
         if self.pool_type == "mean":
             return frame_features.mean(dim=1)
@@ -81,9 +79,7 @@ class VideoTokenGenerator(nn.Module):
         self.frame_proj = nn.Linear(hidden_size, hidden_size)
         self.token_norm = nn.LayerNorm(hidden_size)
 
-    def forward(
-        self, frame_features: torch.Tensor, num_frames: int
-    ) -> torch.Tensor:
+    def forward(self, frame_features: torch.Tensor, num_frames: int) -> torch.Tensor:
         """Add temporal position encoding to frame features.
 
         Args:
@@ -93,7 +89,7 @@ class VideoTokenGenerator(nn.Module):
         Returns:
             Temporally-encoded features (B, num_frames, num_tokens, hidden).
         """
-        B, T, N, D = frame_features.shape
+        B, T, N, D = frame_features.shape  # noqa: N806
         frame_ids = torch.arange(T, device=frame_features.device)
         temporal_emb = self.temporal_embed(frame_ids)
         temporal_emb = temporal_emb.unsqueeze(0).unsqueeze(2)
@@ -107,7 +103,7 @@ def sample_frames(
     total_frames: int,
     num_sample: int = 8,
     strategy: str = "uniform",
-    fps: Optional[float] = None,
+    fps: float | None = None,
     target_fps: float = 1.0,
 ) -> list[int]:
     """Sample frame indices from a video.
@@ -146,7 +142,7 @@ def load_video_frames(
     num_frames: int = 8,
     strategy: str = "uniform",
     image_size: int = 336,
-) -> Tuple[torch.Tensor, dict]:
+) -> tuple[torch.Tensor, dict]:
     """Load and preprocess video frames from a file.
 
     Args:
@@ -159,7 +155,6 @@ def load_video_frames(
         Tuple of (pixel_values (num_frames, 3, H, W), metadata dict).
     """
     try:
-        import decord
         from decord import VideoReader, cpu
 
         vr = VideoReader(video_path, ctx=cpu(0))
@@ -170,6 +165,7 @@ def load_video_frames(
     except ImportError:
         try:
             import cv2
+
             cap = cv2.VideoCapture(video_path)
             total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = cap.get(cv2.CAP_PROP_FPS)
@@ -188,6 +184,7 @@ def load_video_frames(
                 raise RuntimeError(f"Failed to read frames from {video_path}")
 
             import numpy as np
+
             frames = np.stack(frames_list)
         except ImportError:
             raise ImportError(
@@ -196,18 +193,21 @@ def load_video_frames(
             )
 
     from torchvision import transforms
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize(
-            (image_size, image_size),
-            interpolation=transforms.InterpolationMode.BICUBIC,
-        ),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.48145466, 0.4578275, 0.40821073],
-            std=[0.26862954, 0.26130258, 0.27577711],
-        ),
-    ])
+
+    transform = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.Resize(
+                (image_size, image_size),
+                interpolation=transforms.InterpolationMode.BICUBIC,
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.48145466, 0.4578275, 0.40821073],
+                std=[0.26862954, 0.26130258, 0.27577711],
+            ),
+        ]
+    )
 
     pixel_values = torch.stack([transform(f) for f in frames])
     metadata = {
@@ -243,7 +243,9 @@ class VideoEncoder(nn.Module):
 
         self.token_generator = VideoTokenGenerator(hidden_size, max_frames=64)
         self.temporal_pool = TemporalPooling(
-            hidden_size, num_heads=8, pool_type=temporal_pool_type,
+            hidden_size,
+            num_heads=8,
+            pool_type=temporal_pool_type,
         )
 
     def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
@@ -258,13 +260,13 @@ class VideoEncoder(nn.Module):
         if pixel_values.dim() == 4:
             pixel_values = pixel_values.unsqueeze(0)
 
-        B, T, C, H, W = pixel_values.shape
+        B, T, C, H, W = pixel_values.shape  # noqa: N806
         flat_frames = pixel_values.reshape(B * T, C, H, W)
 
         with torch.set_grad_enabled(self.training):
             frame_features = self.frame_encoder(flat_frames)
 
-        N, D = frame_features.shape[1], frame_features.shape[2]
+        N, D = frame_features.shape[1], frame_features.shape[2]  # noqa: N806
         frame_features = frame_features.reshape(B, T, N, D)
 
         frame_features = self.token_generator(frame_features, T)
@@ -275,7 +277,7 @@ class VideoEncoder(nn.Module):
     def encode_video(
         self,
         video_path: str,
-        num_frames: Optional[int] = None,
+        num_frames: int | None = None,
         strategy: str = "uniform",
     ) -> torch.Tensor:
         """Convenience method: load a video file and encode it.
@@ -290,7 +292,9 @@ class VideoEncoder(nn.Module):
         """
         n = num_frames or self.num_frames
         pixel_values, _ = load_video_frames(
-            video_path, num_frames=n, strategy=strategy,
+            video_path,
+            num_frames=n,
+            strategy=strategy,
             image_size=self.config.image_size,
         )
         device = next(self.parameters()).device

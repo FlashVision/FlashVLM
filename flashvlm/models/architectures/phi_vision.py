@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from flashvlm.cfg.config import FlashVLMConfig, VisionConfig, ProjectorConfig
-from flashvlm.models.vision_encoder import SigLIPVisionEncoder, build_vision_encoder
+from flashvlm.cfg.config import FlashVLMConfig
 from flashvlm.models.projector import MLPProjector
+from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.registry import MODELS
 
 
@@ -67,7 +65,7 @@ class PhiImageEmbedding(nn.Module):
         return projected
 
     def _encode_with_crops(self, pixel_values: torch.Tensor) -> torch.Tensor:
-        B, NC, C, H, W = pixel_values.shape
+        B, NC, C, H, W = pixel_values.shape  # noqa: N806
         global_img = pixel_values[:, 0]
         crop_imgs = pixel_values[:, 1:]
 
@@ -78,7 +76,7 @@ class PhiImageEmbedding(nn.Module):
         crop_features = self.vision_encoder(crop_imgs_flat)
         crop_projected = self.projector(crop_features)
 
-        _, N, D = crop_projected.shape
+        _, N, D = crop_projected.shape  # noqa: N806
         crop_projected = crop_projected.reshape(B, NC - 1, N, D)
 
         all_tokens = [global_projected, self.glb_gn.expand(B, -1, -1)]
@@ -120,10 +118,10 @@ class PhiVisionArchitecture(nn.Module):
     def prepare_inputs_for_multimodal(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        image_sizes: Optional[list[Tuple[int, int]]] = None,
-    ) -> Dict[str, torch.Tensor]:
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        image_sizes: list[tuple[int, int]] | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Prepare multimodal inputs by replacing image tokens with visual embeddings.
 
         Supports multiple images per sample via indexed image tokens.
@@ -166,13 +164,16 @@ class PhiVisionArchitecture(nn.Module):
 
             max_len = max(e.shape[0] for e in new_embeds_list)
             padded = torch.zeros(
-                batch_size, max_len, new_embeds_list[0].shape[-1],
-                device=inputs_embeds.device, dtype=inputs_embeds.dtype,
+                batch_size,
+                max_len,
+                new_embeds_list[0].shape[-1],
+                device=inputs_embeds.device,
+                dtype=inputs_embeds.dtype,
             )
             new_mask = torch.zeros(batch_size, max_len, device=input_ids.device, dtype=torch.long)
             for b, emb in enumerate(new_embeds_list):
-                padded[b, :emb.shape[0]] = emb
-                new_mask[b, :emb.shape[0]] = 1
+                padded[b, : emb.shape[0]] = emb
+                new_mask[b, : emb.shape[0]] = 1
 
             inputs_embeds = padded
             attention_mask = new_mask
@@ -180,7 +181,8 @@ class PhiVisionArchitecture(nn.Module):
             inputs_embeds = torch.cat([image_features, inputs_embeds], dim=1)
             if attention_mask is not None:
                 img_mask = torch.ones(
-                    image_features.shape[:2], device=attention_mask.device,
+                    image_features.shape[:2],
+                    device=attention_mask.device,
                     dtype=attention_mask.dtype,
                 )
                 attention_mask = torch.cat([img_mask, attention_mask], dim=1)
@@ -190,11 +192,11 @@ class PhiVisionArchitecture(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
         **kwargs: Any,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Forward pass for Phi-Vision training."""
         prepared = self.prepare_inputs_for_multimodal(input_ids, pixel_values, attention_mask)
 
@@ -210,6 +212,8 @@ class PhiVisionArchitecture(nn.Module):
         loss = None
         if labels is not None:
             loss = nn.functional.cross_entropy(
-                logits.view(-1, logits.size(-1)), labels.view(-1), ignore_index=-100,
+                logits.view(-1, logits.size(-1)),
+                labels.view(-1),
+                ignore_index=-100,
             )
         return {"loss": loss, "logits": logits}

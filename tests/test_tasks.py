@@ -2,14 +2,14 @@
 
 import pytest
 
-from flashvlm.tasks.grounding import GroundingTask
-from flashvlm.tasks.vqa import VQATask
 from flashvlm.analytics.metrics import (
     compute_bleu,
     compute_cider,
     compute_meteor,
     vqa_accuracy,
 )
+from flashvlm.tasks.grounding import GroundingTask
+from flashvlm.tasks.vqa import VQATask
 
 
 class TestGroundingTask:

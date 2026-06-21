@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 from flashvlm.cfg.config import FlashVLMConfig
-from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.models.projector import MLPProjector
+from flashvlm.models.vision_encoder import build_vision_encoder
 from flashvlm.registry import MODELS
 
 
@@ -46,7 +46,7 @@ class DynamicResolutionModule(nn.Module):
         self.base_size = base_size
         self.max_tiles = max_tiles
 
-    def compute_tile_layout(self, image_size: Tuple[int, int]) -> Tuple[int, int]:
+    def compute_tile_layout(self, image_size: tuple[int, int]) -> tuple[int, int]:
         """Compute optimal tile grid for a given image size."""
         h, w = image_size
         aspect_ratio = w / h
@@ -66,7 +66,7 @@ class DynamicResolutionModule(nn.Module):
 
         return best_layout
 
-    def split_into_tiles(self, image: torch.Tensor) -> List[torch.Tensor]:
+    def split_into_tiles(self, image: torch.Tensor) -> list[torch.Tensor]:
         """Split an image tensor into tiles of base_size."""
         _, _, h, w = image.shape
         rows, cols = self.compute_tile_layout((h, w))
@@ -76,7 +76,7 @@ class DynamicResolutionModule(nn.Module):
         tiles = []
         for r in range(rows):
             for c in range(cols):
-                tile = image[:, :, r * tile_h:(r + 1) * tile_h, c * tile_w:(c + 1) * tile_w]
+                tile = image[:, :, r * tile_h : (r + 1) * tile_h, c * tile_w : (c + 1) * tile_w]
                 tile = F.interpolate(
                     tile, size=(self.base_size, self.base_size), mode="bicubic", align_corners=False
                 )
@@ -144,11 +144,11 @@ class InternVLArchitecture(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
         **kwargs: Any,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Forward pass for InternVL."""
         if pixel_values is not None:
             visual_tokens = self.encode_images(pixel_values)
@@ -176,7 +176,11 @@ class InternVLArchitecture(nn.Module):
             )
             return {"loss": outputs.loss, "logits": outputs.logits}
 
-        logits = visual_tokens if visual_tokens is not None else torch.zeros(
-            input_ids.shape[0], 1, self.config.language.hidden_size, device=input_ids.device
+        logits = (
+            visual_tokens
+            if visual_tokens is not None
+            else torch.zeros(
+                input_ids.shape[0], 1, self.config.language.hidden_size, device=input_ids.device
+            )
         )
         return {"loss": None, "logits": logits}

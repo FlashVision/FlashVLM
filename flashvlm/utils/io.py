@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -12,8 +12,8 @@ from PIL import Image
 
 
 def load_image(
-    path: Union[str, Path],
-    size: Optional[tuple[int, int]] = None,
+    path: str | Path,
+    size: tuple[int, int] | None = None,
     mode: str = "RGB",
 ) -> Image.Image:
     """Load an image from disk with optional resizing.
@@ -37,8 +37,8 @@ def load_image(
 
 
 def save_image(
-    image: Union[Image.Image, np.ndarray, torch.Tensor],
-    path: Union[str, Path],
+    image: Image.Image | np.ndarray | torch.Tensor,
+    path: str | Path,
     quality: int = 95,
 ) -> None:
     """Save an image to disk.
@@ -74,7 +74,7 @@ def save_image(
     image.save(path, **save_kwargs)
 
 
-def load_json(path: Union[str, Path]) -> Any:
+def load_json(path: str | Path) -> Any:
     """Load a JSON file.
 
     Args:
@@ -90,7 +90,7 @@ def load_json(path: Union[str, Path]) -> Any:
         return json.load(f)
 
 
-def save_json(data: Any, path: Union[str, Path], indent: int = 2) -> None:
+def save_json(data: Any, path: str | Path, indent: int = 2) -> None:
     """Save data as JSON.
 
     Args:
@@ -104,9 +104,7 @@ def save_json(data: Any, path: Union[str, Path], indent: int = 2) -> None:
         json.dump(data, f, indent=indent, ensure_ascii=False)
 
 
-def load_checkpoint(
-    path: Union[str, Path], device: str = "cpu"
-) -> Dict[str, Any]:
+def load_checkpoint(path: str | Path, device: str = "cpu") -> dict[str, Any]:
     """Load a model checkpoint.
 
     Args:
@@ -122,14 +120,15 @@ def load_checkpoint(
 
     if path.suffix == ".safetensors":
         from safetensors.torch import load_file
+
         return load_file(str(path), device=device)
 
     return torch.load(path, map_location=device, weights_only=True)
 
 
 def save_checkpoint(
-    state_dict: Dict[str, torch.Tensor],
-    path: Union[str, Path],
+    state_dict: dict[str, torch.Tensor],
+    path: str | Path,
     use_safetensors: bool = True,
 ) -> None:
     """Save model weights.
@@ -145,6 +144,7 @@ def save_checkpoint(
     if use_safetensors:
         try:
             from safetensors.torch import save_file
+
             save_file({k: v.contiguous() for k, v in state_dict.items()}, str(path))
             return
         except ImportError:

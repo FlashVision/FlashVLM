@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 
-from flashvlm.cfg.config import FlashVLMConfig, VisionConfig, ProjectorConfig
-from flashvlm.models.vision_encoder import CLIPVisionEncoder
+from flashvlm.cfg.config import FlashVLMConfig
 from flashvlm.models.projector import MLPProjector
+from flashvlm.models.vision_encoder import CLIPVisionEncoder
 from flashvlm.registry import MODELS
 
 
@@ -50,9 +50,9 @@ class LLaVAArchitecture(nn.Module):
     def prepare_inputs_for_multimodal(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Prepare multimodal inputs by replacing image tokens with visual embeddings."""
         if pixel_values is None or self.language_model is None:
             return {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -72,7 +72,7 @@ class LLaVAArchitecture(nn.Module):
                 if cur_image_mask.any():
                     image_idx = cur_image_mask.nonzero(as_tuple=True)[0][0]
                     before = cur_input_embeds[:image_idx]
-                    after = cur_input_embeds[image_idx + 1:]
+                    after = cur_input_embeds[image_idx + 1 :]
                     new_embeds = torch.cat([before, image_features[b], after], dim=0)
                     new_embeds_list.append(new_embeds)
                 else:
@@ -80,25 +80,28 @@ class LLaVAArchitecture(nn.Module):
 
             max_len = max(e.shape[0] for e in new_embeds_list)
             padded_embeds = torch.zeros(
-                batch_size, max_len, new_embeds_list[0].shape[-1],
-                device=inputs_embeds.device, dtype=inputs_embeds.dtype,
+                batch_size,
+                max_len,
+                new_embeds_list[0].shape[-1],
+                device=inputs_embeds.device,
+                dtype=inputs_embeds.dtype,
             )
             new_attention_mask = torch.zeros(
                 batch_size, max_len, device=input_ids.device, dtype=torch.long
             )
             for b, embeds in enumerate(new_embeds_list):
-                padded_embeds[b, :embeds.shape[0]] = embeds
-                new_attention_mask[b, :embeds.shape[0]] = 1
+                padded_embeds[b, : embeds.shape[0]] = embeds
+                new_attention_mask[b, : embeds.shape[0]] = 1
 
             inputs_embeds = padded_embeds
             attention_mask = new_attention_mask
         else:
-            inputs_embeds = torch.cat(
-                [image_features, inputs_embeds], dim=1
-            )
+            inputs_embeds = torch.cat([image_features, inputs_embeds], dim=1)
             if attention_mask is not None:
                 img_mask = torch.ones(
-                    image_features.shape[:2], device=attention_mask.device, dtype=attention_mask.dtype
+                    image_features.shape[:2],
+                    device=attention_mask.device,
+                    dtype=attention_mask.dtype,
                 )
                 attention_mask = torch.cat([img_mask, attention_mask], dim=1)
 
@@ -107,11 +110,11 @@ class LLaVAArchitecture(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
+        pixel_values: torch.Tensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
         **kwargs: Any,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Forward pass for training."""
         prepared = self.prepare_inputs_for_multimodal(input_ids, pixel_values, attention_mask)
 

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import copy
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -49,21 +48,21 @@ class MultiStageTrainer:
 
     def train(
         self,
-        stage1_data: Optional[DataLoader] = None,
-        stage2_data: Optional[DataLoader] = None,
-        val_data: Optional[DataLoader] = None,
+        stage1_data: DataLoader | None = None,
+        stage2_data: DataLoader | None = None,
+        val_data: DataLoader | None = None,
         stage1_epochs: int = 1,
         stage2_epochs: int = 3,
         stage1_lr: float = 1e-3,
         stage2_lr: float = 2e-5,
         use_lora_stage2: bool = False,
         lora_rank: int = 16,
-        lora_target_modules: Optional[List[str]] = None,
+        lora_target_modules: list[str] | None = None,
         gradient_accumulation_steps: int = 4,
         max_grad_norm: float = 1.0,
         warmup_ratio: float = 0.03,
         save_each_stage: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run the full multi-stage training pipeline.
 
         Args:
@@ -158,7 +157,9 @@ class MultiStageTrainer:
             param.requires_grad = False
 
         for name, param in self.model.named_parameters():
-            if any(key in name for key in ["projector", "mm_projector", "image_embedding.projector"]):
+            if any(
+                key in name for key in ["projector", "mm_projector", "image_embedding.projector"]
+            ):
                 param.requires_grad = True
 
     def _freeze_for_stage2(self) -> None:
@@ -167,14 +168,21 @@ class MultiStageTrainer:
             param.requires_grad = True
 
         for name, param in self.model.named_parameters():
-            if any(key in name for key in [
-                "vision_encoder", "vision_tower", "frame_encoder",
-                "image_embedding.vision_encoder",
-            ]):
+            if any(
+                key in name
+                for key in [
+                    "vision_encoder",
+                    "vision_tower",
+                    "frame_encoder",
+                    "image_embedding.vision_encoder",
+                ]
+            ):
                 param.requires_grad = False
 
     def _apply_lora_stage2(
-        self, rank: int, target_modules: Optional[List[str]],
+        self,
+        rank: int,
+        target_modules: list[str] | None,
     ) -> None:
         """Apply LoRA adapters for parameter-efficient stage 2 training."""
         for param in self.model.parameters():
@@ -185,8 +193,11 @@ class MultiStageTrainer:
 
         try:
             from flashvlm.models.lora import apply_lora
+
             self.model = apply_lora(
-                self.model, rank=rank, target_modules=target_modules,
+                self.model,
+                rank=rank,
+                target_modules=target_modules,
             )
         except ImportError:
             logger.warning("LoRA module not available. Falling back to full fine-tuning.")
@@ -195,14 +206,14 @@ class MultiStageTrainer:
     def _train_stage(
         self,
         dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader],
+        val_dataloader: DataLoader | None,
         epochs: int,
         lr: float,
         gradient_accumulation_steps: int,
         max_grad_norm: float,
         warmup_ratio: float,
         stage_name: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Train a single stage."""
         trainable_params = [p for p in self.model.parameters() if p.requires_grad]
         optimizer = AdamW(trainable_params, lr=lr, weight_decay=0.01)
@@ -211,10 +222,13 @@ class MultiStageTrainer:
         warmup_steps = int(total_steps * warmup_ratio)
 
         warmup_scheduler = LinearLR(
-            optimizer, start_factor=0.1, total_iters=max(warmup_steps, 1),
+            optimizer,
+            start_factor=0.1,
+            total_iters=max(warmup_steps, 1),
         )
         cosine_scheduler = CosineAnnealingLR(
-            optimizer, T_max=max(total_steps - warmup_steps, 1),
+            optimizer,
+            T_max=max(total_steps - warmup_steps, 1),
         )
         scheduler = SequentialLR(
             optimizer,
@@ -253,7 +267,7 @@ class MultiStageTrainer:
 
             avg_loss = running_loss / max(num_batches, 1)
             epoch_losses.append(avg_loss)
-            logger.info(f"[{stage_name}] Epoch {epoch+1}/{epochs} — loss: {avg_loss:.4f}")
+            logger.info(f"[{stage_name}] Epoch {epoch + 1}/{epochs} — loss: {avg_loss:.4f}")
 
             if val_dataloader is not None:
                 val_loss = self._validate(val_dataloader)
@@ -265,7 +279,7 @@ class MultiStageTrainer:
             "total_steps": self._global_step,
         }
 
-    def _forward_step(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+    def _forward_step(self, batch: dict[str, Any]) -> dict[str, torch.Tensor]:
         """Run a single forward step, handling different batch formats."""
         if "input_ids" in batch:
             return self.model(
@@ -293,11 +307,10 @@ class MultiStageTrainer:
         self.model.train()
         return total_loss / max(num_batches, 1)
 
-    def _move_batch(self, batch: Any) -> Dict[str, Any]:
+    def _move_batch(self, batch: Any) -> dict[str, Any]:
         if isinstance(batch, dict):
             return {
-                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-                for k, v in batch.items()
+                k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()
             }
         if isinstance(batch, (list, tuple)):
             return {"pixel_values": batch[0].to(self.device)}

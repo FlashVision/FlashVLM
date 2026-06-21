@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -30,16 +30,17 @@ class ImageAnalyzer:
     def _load_model(self) -> None:
         try:
             from flashvlm.models.vlm import FlashVLM
+
             self.model = FlashVLM.from_pretrained(self.model_name, device=self.device)
         except Exception as e:
             print(f"Warning: Could not load model: {e}")
 
     def analyze(
         self,
-        image: Union[str, Path, Image.Image],
-        aspects: Optional[List[str]] = None,
+        image: str | Path | Image.Image,
+        aspects: list[str] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Perform comprehensive image analysis.
 
         Args:
@@ -59,9 +60,11 @@ class ImageAnalyzer:
             prompt = self._get_aspect_prompt(aspect)
             if self.model is not None:
                 result = self.model.generate(
-                    prompt=prompt, image=image,
+                    prompt=prompt,
+                    image=image,
                     max_new_tokens=self.max_tokens // len(aspects),
-                    temperature=0.3, **kwargs,
+                    temperature=0.3,
+                    **kwargs,
                 )
                 results[aspect] = result.strip()
             else:
@@ -71,7 +74,7 @@ class ImageAnalyzer:
 
     def full_analysis(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         **kwargs: Any,
     ) -> str:
         """Generate a comprehensive, detailed analysis of an image.
@@ -95,14 +98,18 @@ class ImageAnalyzer:
 
         if self.model is not None:
             return self.model.generate(
-                prompt=prompt, image=image, max_new_tokens=self.max_tokens, temperature=0.5, **kwargs,
+                prompt=prompt,
+                image=image,
+                max_new_tokens=self.max_tokens,
+                temperature=0.5,
+                **kwargs,
             )
         return "[Model not loaded for full analysis]"
 
     def compare(
         self,
-        image1: Union[str, Path, Image.Image],
-        image2: Union[str, Path, Image.Image],
+        image1: str | Path | Image.Image,
+        image2: str | Path | Image.Image,
         **kwargs: Any,
     ) -> str:
         """Compare two images and describe differences/similarities.
@@ -125,9 +132,9 @@ class ImageAnalyzer:
 
     def detect_objects(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Detect and list objects in an image.
 
         Args:
@@ -145,7 +152,11 @@ class ImageAnalyzer:
 
         if self.model is not None:
             response = self.model.generate(
-                prompt=prompt, image=image, max_new_tokens=300, temperature=0.2, **kwargs,
+                prompt=prompt,
+                image=image,
+                max_new_tokens=300,
+                temperature=0.2,
+                **kwargs,
             )
             return self._parse_objects(response)
         return []
@@ -164,7 +175,7 @@ class ImageAnalyzer:
         }
         return prompts.get(aspect, f"Analyze the {aspect} aspect of this image.")
 
-    def _parse_objects(self, response: str) -> List[Dict[str, Any]]:
+    def _parse_objects(self, response: str) -> list[dict[str, Any]]:
         """Parse object list from model response."""
         objects = []
         for line in response.strip().split("\n"):

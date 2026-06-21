@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-import torch
 from PIL import Image
 
 from flashvlm.registry import TASKS
@@ -42,8 +41,7 @@ class ChartQATask:
             "Question: {question}\n\nAnswer:"
         ),
         "summarize": (
-            "Provide a concise summary of the data presented in "
-            "this chart/table.\n\nSummary:"
+            "Provide a concise summary of the data presented in this chart/table.\n\nSummary:"
         ),
         "default": "Question: {question}\nAnswer:",
     }
@@ -62,9 +60,9 @@ class ChartQATask:
 
     def answer(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         question: str,
-        chart_type: Optional[str] = None,
+        chart_type: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Answer a question about a chart or table.
@@ -80,15 +78,17 @@ class ChartQATask:
         style = self._infer_prompt_style(question, chart_type)
         prompt = self._format_prompt(question, style)
         answer = self.model.generate(
-            prompt=prompt, image=image,
+            prompt=prompt,
+            image=image,
             max_new_tokens=self.max_new_tokens,
-            temperature=self.temperature, **kwargs,
+            temperature=self.temperature,
+            **kwargs,
         )
         return self._postprocess(answer)
 
     def parse_table(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         output_format: str = "markdown",
         **kwargs: Any,
     ) -> str:
@@ -117,14 +117,17 @@ class ChartQATask:
         }
         prompt = prompt_map.get(output_format, prompt_map["markdown"])
         result = self.model.generate(
-            prompt=prompt, image=image,
-            max_new_tokens=512, temperature=0.05, **kwargs,
+            prompt=prompt,
+            image=image,
+            max_new_tokens=512,
+            temperature=0.05,
+            **kwargs,
         )
         return result.strip()
 
     def describe_chart(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         detail_level: str = "detailed",
         **kwargs: Any,
     ) -> str:
@@ -150,27 +153,29 @@ class ChartQATask:
                 "5. Any notable observations\n\nDescription:"
             )
         result = self.model.generate(
-            prompt=prompt, image=image,
+            prompt=prompt,
+            image=image,
             max_new_tokens=self.max_new_tokens,
-            temperature=0.3, **kwargs,
+            temperature=0.3,
+            **kwargs,
         )
         return result.strip()
 
     def batch_answer(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        questions: List[str],
+        images: list[str | Path | Image.Image],
+        questions: list[str],
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Answer multiple chart/table questions."""
         return [self.answer(img, q, **kwargs) for img, q in zip(images, questions)]
 
     def evaluate(
         self,
-        predictions: List[str],
-        ground_truths: List[Union[str, List[str]]],
+        predictions: list[str],
+        ground_truths: list[str | list[str]],
         relaxed_accuracy: bool = True,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Compute ChartQA evaluation metrics.
 
         Uses relaxed accuracy: prediction within 5% of numeric ground truth
@@ -200,9 +205,7 @@ class ChartQATask:
         accuracy = correct / max(total, 1)
         return {"accuracy": accuracy, "correct": correct, "total": total}
 
-    def _infer_prompt_style(
-        self, question: str, chart_type: Optional[str]
-    ) -> str:
+    def _infer_prompt_style(self, question: str, chart_type: str | None) -> str:
         q_lower = question.lower()
         if chart_type == "table":
             return "table_parse"
@@ -222,7 +225,7 @@ class ChartQATask:
         answer = answer.strip()
         for stop in ["\n\n", "Question:", "Image:"]:
             if stop in answer:
-                answer = answer[:answer.index(stop)]
+                answer = answer[: answer.index(stop)]
         return answer.strip()
 
     @staticmethod
@@ -232,7 +235,7 @@ class ChartQATask:
         return text
 
     @staticmethod
-    def _extract_number(text: str) -> Optional[float]:
+    def _extract_number(text: str) -> float | None:
         match = re.search(r"-?\d+\.?\d*", text)
         if match:
             try:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -16,10 +16,21 @@ class CaptioningTask:
 
     PROMPT_TEMPLATES = {
         "brief": "Describe this image briefly.",
-        "detailed": "Describe this image in detail, including all visible objects, their positions, colors, and any activities or interactions.",
+        "detailed": (
+            "Describe this image in detail, including all visible "
+            "objects, their positions, colors, and any activities "
+            "or interactions."
+        ),
         "creative": "Write a creative and engaging caption for this image.",
-        "technical": "Provide a technical description of this image, noting specific objects, their attributes, and spatial relationships.",
-        "accessibility": "Describe this image for someone who cannot see it, focusing on the most important visual information.",
+        "technical": (
+            "Provide a technical description of this image, noting "
+            "specific objects, their attributes, and spatial "
+            "relationships."
+        ),
+        "accessibility": (
+            "Describe this image for someone who cannot see it, "
+            "focusing on the most important visual information."
+        ),
     }
 
     def __init__(
@@ -36,9 +47,9 @@ class CaptioningTask:
 
     def caption(
         self,
-        image: Union[str, Path, Image.Image],
-        style: Optional[str] = None,
-        custom_prompt: Optional[str] = None,
+        image: str | Path | Image.Image,
+        style: str | None = None,
+        custom_prompt: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Generate a caption for an image.
@@ -52,7 +63,9 @@ class CaptioningTask:
             Generated caption string.
         """
         style = style or self.style
-        prompt = custom_prompt or self.PROMPT_TEMPLATES.get(style, self.PROMPT_TEMPLATES["detailed"])
+        prompt = custom_prompt or self.PROMPT_TEMPLATES.get(
+            style, self.PROMPT_TEMPLATES["detailed"]
+        )
 
         caption = self.model.generate(
             prompt=prompt,
@@ -65,16 +78,16 @@ class CaptioningTask:
 
     def batch_caption(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        style: Optional[str] = None,
+        images: list[str | Path | Image.Image],
+        style: str | None = None,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate captions for multiple images."""
         return [self.caption(img, style=style, **kwargs) for img in images]
 
     def caption_with_context(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         context: str,
         **kwargs: Any,
     ) -> str:
@@ -93,15 +106,15 @@ class CaptioningTask:
     def _postprocess(self, caption: str) -> str:
         """Clean caption output."""
         caption = caption.strip()
-        if caption and not caption[-1] in ".!?":
+        if caption and caption[-1] not in ".!?":
             caption += "."
         return caption
 
     def evaluate(
         self,
-        predictions: List[str],
-        references: List[List[str]],
-    ) -> Dict[str, float]:
+        predictions: list[str],
+        references: list[list[str]],
+    ) -> dict[str, float]:
         """Evaluate captions using n-gram metrics.
 
         Computes simplified BLEU-4 and CIDEr-like scores.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TrainingCallback:
@@ -19,7 +19,7 @@ class TrainingCallback:
     def on_epoch_begin(self, epoch: int, **kwargs: Any) -> None:
         pass
 
-    def on_epoch_end(self, epoch: int, metrics: Dict[str, float], **kwargs: Any) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], **kwargs: Any) -> None:
         pass
 
     def on_step_begin(self, step: int, **kwargs: Any) -> None:
@@ -28,7 +28,7 @@ class TrainingCallback:
     def on_step_end(self, step: int, loss: float, **kwargs: Any) -> None:
         pass
 
-    def on_evaluate(self, metrics: Dict[str, float], **kwargs: Any) -> None:
+    def on_evaluate(self, metrics: dict[str, float], **kwargs: Any) -> None:
         pass
 
 
@@ -50,11 +50,11 @@ class EarlyStoppingCallback(TrainingCallback):
         self.patience = patience
         self.min_delta = min_delta
         self.mode = mode
-        self.best_value: Optional[float] = None
+        self.best_value: float | None = None
         self.counter = 0
         self.should_stop = False
 
-    def on_epoch_end(self, epoch: int, metrics: Dict[str, float], **kwargs: Any) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], **kwargs: Any) -> None:
         value = metrics.get(self.monitor)
         if value is None:
             return
@@ -89,14 +89,14 @@ class LoggingCallback(TrainingCallback):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.log_file = self.log_dir / "training.log"
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     def on_train_begin(self, **kwargs: Any) -> None:
         self.start_time = time.time()
         with open(self.log_file, "a") as f:
             f.write(f"Training started at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
 
-    def on_epoch_end(self, epoch: int, metrics: Dict[str, float], **kwargs: Any) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], **kwargs: Any) -> None:
         elapsed = time.time() - (self.start_time or time.time())
         with open(self.log_file, "a") as f:
             metrics_str = ", ".join(f"{k}={v:.4f}" for k, v in metrics.items())
@@ -122,7 +122,7 @@ class CheckpointCallback(TrainingCallback):
         self.keep_last_n = keep_last_n
         self.saved_checkpoints: list[Path] = []
 
-    def on_epoch_end(self, epoch: int, metrics: Dict[str, float], **kwargs: Any) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], **kwargs: Any) -> None:
         if (epoch + 1) % self.save_every_n_epochs != 0:
             return
 
@@ -131,6 +131,7 @@ class CheckpointCallback(TrainingCallback):
             return
 
         import torch
+
         ckpt_path = self.save_dir / f"checkpoint-epoch-{epoch + 1}.pt"
         ckpt_path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(model.state_dict(), ckpt_path)

@@ -7,7 +7,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -22,8 +22,8 @@ class BaseEvaluator(ABC):
     def __init__(
         self,
         model: nn.Module,
-        data_path: Optional[str] = None,
-        image_dir: Optional[str] = None,
+        data_path: str | None = None,
+        image_dir: str | None = None,
         split: str = "val",
         max_new_tokens: int = 64,
     ):
@@ -35,16 +35,18 @@ class BaseEvaluator(ABC):
 
     def run(
         self,
-        max_samples: Optional[int] = None,
+        max_samples: int | None = None,
         verbose: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run full evaluation pipeline."""
         start = time.time()
         samples = self.load_data(max_samples)
         if not samples:
             if verbose:
-                print(f"[{self.name}] No data found at {self.data_path}. "
-                      "Running with synthetic samples.")
+                print(
+                    f"[{self.name}] No data found at {self.data_path}. "
+                    "Running with synthetic samples."
+                )
             samples = self._generate_synthetic_samples()
 
         predictions = self._run_inference(samples, verbose)
@@ -58,43 +60,49 @@ class BaseEvaluator(ABC):
         return metrics
 
     @abstractmethod
-    def load_data(self, max_samples: Optional[int] = None) -> List[Dict[str, Any]]:
+    def load_data(self, max_samples: int | None = None) -> list[dict[str, Any]]:
         """Load benchmark samples."""
         ...
 
     @abstractmethod
-    def format_prompt(self, sample: Dict[str, Any]) -> str:
+    def format_prompt(self, sample: dict[str, Any]) -> str:
         """Format the prompt for this benchmark."""
         ...
 
     @abstractmethod
     def compute_metrics(
-        self, predictions: List[str], samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        self,
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         """Compute benchmark-specific metrics."""
         ...
 
     def _run_inference(
-        self, samples: List[Dict[str, Any]], verbose: bool,
-    ) -> List[str]:
+        self,
+        samples: list[dict[str, Any]],
+        verbose: bool,
+    ) -> list[str]:
         predictions = []
         self.model.eval()
         total = len(samples)
         with torch.no_grad():
             for i, sample in enumerate(samples):
                 if verbose and (i + 1) % max(1, total // 10) == 0:
-                    print(f"  [{self.name}] {i+1}/{total}")
+                    print(f"  [{self.name}] {i + 1}/{total}")
                 prompt = self.format_prompt(sample)
                 image = self._load_image(sample)
                 if hasattr(self.model, "generate"):
                     pred = self.model.generate(
-                        prompt=prompt, image=image,
+                        prompt=prompt,
+                        image=image,
                         max_new_tokens=self.max_new_tokens,
                         temperature=0.0,
                     )
                 elif hasattr(self.model, "ask"):
                     pred = self.model.ask(
-                        sample.get("question", ""), image=image,
+                        sample.get("question", ""),
+                        image=image,
                         max_new_tokens=self.max_new_tokens,
                     )
                 else:
@@ -102,7 +110,7 @@ class BaseEvaluator(ABC):
                 predictions.append(pred.strip())
         return predictions
 
-    def _load_image(self, sample: Dict[str, Any]) -> Optional[Image.Image]:
+    def _load_image(self, sample: dict[str, Any]) -> Image.Image | None:
         img_path = sample.get("image") or sample.get("image_path")
         if img_path is None:
             return None
@@ -116,7 +124,7 @@ class BaseEvaluator(ABC):
             return Image.open(full_path).convert("RGB")
         return None
 
-    def _load_json(self, path: Optional[str], max_samples: Optional[int]) -> List[Dict[str, Any]]:
+    def _load_json(self, path: str | None, max_samples: int | None) -> list[dict[str, Any]]:
         if path is None:
             return []
         p = Path(path)
@@ -130,16 +138,16 @@ class BaseEvaluator(ABC):
             data = data[:max_samples]
         return data
 
-    def _generate_synthetic_samples(self) -> List[Dict[str, Any]]:
+    def _generate_synthetic_samples(self) -> list[dict[str, Any]]:
         return [
             {"question": "What color is the sky?", "answer": "blue", "answers": ["blue"]},
             {"question": "How many objects?", "answer": "3", "answers": ["3", "three"]},
         ]
 
-    def _print_results(self, metrics: Dict[str, Any]) -> None:
-        print(f"\n{'='*50}")
+    def _print_results(self, metrics: dict[str, Any]) -> None:
+        print(f"\n{'=' * 50}")
         print(f"Benchmark: {metrics.get('benchmark', self.name)}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
         for k, v in metrics.items():
             if k not in ("benchmark",):
                 print(f"  {k}: {v}")
@@ -151,7 +159,7 @@ class VQAv2Evaluator(BaseEvaluator):
 
     name = "vqav2"
 
-    def load_data(self, max_samples: Optional[int] = None) -> List[Dict[str, Any]]:
+    def load_data(self, max_samples: int | None = None) -> list[dict[str, Any]]:
         samples = self._load_json(self.data_path, max_samples)
         parsed = []
         for s in samples:
@@ -167,20 +175,22 @@ class VQAv2Evaluator(BaseEvaluator):
             parsed.append({"question": question, "answers": answers, "image": image})
         return parsed
 
-    def format_prompt(self, sample: Dict[str, Any]) -> str:
+    def format_prompt(self, sample: dict[str, Any]) -> str:
         q = sample["question"]
         return f"Question: {q}\nShort answer:"
 
     def compute_metrics(
-        self, predictions: List[str], samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        self,
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         correct = 0.0
         for pred, sample in zip(predictions, samples):
             answers = sample.get("answers", [])
             if not answers:
                 continue
             pred_norm = _normalize_vqa(pred)
-            answer_counts: Dict[str, int] = {}
+            answer_counts: dict[str, int] = {}
             for a in answers:
                 a_norm = _normalize_vqa(a)
                 answer_counts[a_norm] = answer_counts.get(a_norm, 0) + 1
@@ -195,7 +205,7 @@ class TextVQAEvaluator(BaseEvaluator):
 
     name = "textvqa"
 
-    def load_data(self, max_samples: Optional[int] = None) -> List[Dict[str, Any]]:
+    def load_data(self, max_samples: int | None = None) -> list[dict[str, Any]]:
         samples = self._load_json(self.data_path, max_samples)
         parsed = []
         for s in samples:
@@ -205,31 +215,34 @@ class TextVQAEvaluator(BaseEvaluator):
                 answers = [answers]
             image = s.get("image", s.get("image_path", s.get("image_id", "")))
             ocr_tokens = s.get("ocr_tokens", [])
-            parsed.append({
-                "question": q, "answers": answers,
-                "image": image, "ocr_tokens": ocr_tokens,
-            })
+            parsed.append(
+                {
+                    "question": q,
+                    "answers": answers,
+                    "image": image,
+                    "ocr_tokens": ocr_tokens,
+                }
+            )
         return parsed
 
-    def format_prompt(self, sample: Dict[str, Any]) -> str:
+    def format_prompt(self, sample: dict[str, Any]) -> str:
         q = sample["question"]
         ocr = sample.get("ocr_tokens", [])
         if ocr:
             ocr_str = ", ".join(ocr[:20])
-            return (
-                f"OCR tokens in the image: {ocr_str}\n"
-                f"Question: {q}\nShort answer:"
-            )
+            return f"OCR tokens in the image: {ocr_str}\nQuestion: {q}\nShort answer:"
         return f"Read the text in the image and answer: {q}\nAnswer:"
 
     def compute_metrics(
-        self, predictions: List[str], samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        self,
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         correct = 0.0
         for pred, sample in zip(predictions, samples):
             answers = sample.get("answers", [])
             pred_norm = _normalize_vqa(pred)
-            answer_counts: Dict[str, int] = {}
+            answer_counts: dict[str, int] = {}
             for a in answers:
                 a_norm = _normalize_vqa(a)
                 answer_counts[a_norm] = answer_counts.get(a_norm, 0) + 1
@@ -243,7 +256,7 @@ class MMBenchEvaluator(BaseEvaluator):
 
     name = "mmbench"
 
-    def load_data(self, max_samples: Optional[int] = None) -> List[Dict[str, Any]]:
+    def load_data(self, max_samples: int | None = None) -> list[dict[str, Any]]:
         samples = self._load_json(self.data_path, max_samples)
         parsed = []
         for s in samples:
@@ -254,24 +267,27 @@ class MMBenchEvaluator(BaseEvaluator):
                     options[key] = s[key]
             answer = s.get("answer", "")
             image = s.get("image", s.get("image_path", ""))
-            parsed.append({
-                "question": q, "options": options,
-                "answer": answer, "image": image,
-            })
+            parsed.append(
+                {
+                    "question": q,
+                    "options": options,
+                    "answer": answer,
+                    "image": image,
+                }
+            )
         return parsed
 
-    def format_prompt(self, sample: Dict[str, Any]) -> str:
+    def format_prompt(self, sample: dict[str, Any]) -> str:
         q = sample["question"]
         options = sample.get("options", {})
         opts_str = "\n".join(f"({k}) {v}" for k, v in sorted(options.items()))
-        return (
-            f"Question: {q}\n{opts_str}\n"
-            f"Answer with the option letter (A, B, C, or D):"
-        )
+        return f"Question: {q}\n{opts_str}\nAnswer with the option letter (A, B, C, or D):"
 
     def compute_metrics(
-        self, predictions: List[str], samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        self,
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         correct = 0
         for pred, sample in zip(predictions, samples):
             gt = sample.get("answer", "").strip().upper()
@@ -296,7 +312,7 @@ class POPEEvaluator(BaseEvaluator):
 
     name = "pope"
 
-    def load_data(self, max_samples: Optional[int] = None) -> List[Dict[str, Any]]:
+    def load_data(self, max_samples: int | None = None) -> list[dict[str, Any]]:
         if self.data_path is None:
             return []
         p = Path(self.data_path)
@@ -313,22 +329,26 @@ class POPEEvaluator(BaseEvaluator):
                     item = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                samples.append({
-                    "question": item.get("text", item.get("question", "")),
-                    "answer": item.get("label", item.get("answer", "")),
-                    "image": item.get("image", ""),
-                })
+                samples.append(
+                    {
+                        "question": item.get("text", item.get("question", "")),
+                        "answer": item.get("label", item.get("answer", "")),
+                        "image": item.get("image", ""),
+                    }
+                )
         if max_samples:
             samples = samples[:max_samples]
         return samples
 
-    def format_prompt(self, sample: Dict[str, Any]) -> str:
+    def format_prompt(self, sample: dict[str, Any]) -> str:
         q = sample["question"]
         return f"{q}\nAnswer with yes or no:"
 
     def compute_metrics(
-        self, predictions: List[str], samples: List[Dict[str, Any]],
-    ) -> Dict[str, float]:
+        self,
+        predictions: list[str],
+        samples: list[dict[str, Any]],
+    ) -> dict[str, float]:
         tp = fp = tn = fn = 0
         for pred, sample in zip(predictions, samples):
             gt = sample.get("answer", "").lower().strip()
@@ -368,18 +388,18 @@ def _normalize_vqa(text: str) -> str:
     articles = ["a ", "an ", "the "]
     for art in articles:
         if text.startswith(art):
-            text = text[len(art):]
+            text = text[len(art) :]
     return text.strip()
 
 
 def run_evaluation(
     model: nn.Module,
-    benchmarks: List[str],
-    data_dir: Optional[str] = None,
-    image_dir: Optional[str] = None,
-    max_samples: Optional[int] = None,
+    benchmarks: list[str],
+    data_dir: str | None = None,
+    image_dir: str | None = None,
+    max_samples: int | None = None,
     verbose: bool = True,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """Run multiple benchmark evaluations.
 
     Args:
@@ -421,8 +441,10 @@ def run_evaluation(
                     break
 
         evaluator = cls(
-            model=model, data_path=data_path,
-            image_dir=img_dir, max_new_tokens=64,
+            model=model,
+            data_path=data_path,
+            image_dir=img_dir,
+            max_new_tokens=64,
         )
         results[bench_name] = evaluator.run(max_samples=max_samples, verbose=verbose)
 

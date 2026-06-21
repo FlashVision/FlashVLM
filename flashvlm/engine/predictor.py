@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -22,7 +22,7 @@ class Predictor:
     def __init__(
         self,
         model: nn.Module,
-        config: Optional[FlashVLMConfig] = None,
+        config: FlashVLMConfig | None = None,
         device: str = "auto",
     ):
         self.model = model
@@ -39,7 +39,7 @@ class Predictor:
     @torch.no_grad()
     def predict(
         self,
-        image: Union[str, Path, Image.Image, torch.Tensor],
+        image: str | Path | Image.Image | torch.Tensor,
         prompt: str,
         max_new_tokens: int = 256,
         temperature: float = 0.7,
@@ -70,11 +70,11 @@ class Predictor:
     @torch.no_grad()
     def predict_batch(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        prompts: List[str],
+        images: list[str | Path | Image.Image],
+        prompts: list[str],
         max_new_tokens: int = 256,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Run batched inference on multiple image-prompt pairs.
 
         Args:
@@ -102,7 +102,7 @@ class Predictor:
     @torch.no_grad()
     def vqa(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         question: str,
         max_new_tokens: int = 128,
     ) -> str:
@@ -121,7 +121,7 @@ class Predictor:
     @torch.no_grad()
     def caption(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         max_new_tokens: int = 100,
     ) -> str:
         """Generate a caption for an image.
@@ -136,9 +136,7 @@ class Predictor:
         return self.model.caption(image, max_new_tokens=max_new_tokens)
 
     @torch.no_grad()
-    def get_visual_embeddings(
-        self, image: Union[str, Path, Image.Image, torch.Tensor]
-    ) -> torch.Tensor:
+    def get_visual_embeddings(self, image: str | Path | Image.Image | torch.Tensor) -> torch.Tensor:
         """Extract visual embeddings without text generation.
 
         Args:

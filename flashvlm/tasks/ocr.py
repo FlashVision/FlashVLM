@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from PIL import Image
 
@@ -18,11 +18,17 @@ class OCRTask:
     """
 
     PROMPT_TEMPLATES = {
-        "extract_all": "Extract all text visible in this image, preserving the layout as much as possible.",
+        "extract_all": (
+            "Extract all text visible in this image,"
+            " preserving the layout as much as possible."
+        ),
         "document": "Read the document in this image and output its text content in order.",
         "scene": "Identify and transcribe any text visible in this scene image.",
         "handwriting": "Read the handwritten text in this image.",
-        "structured": "Extract the structured information (tables, forms, key-value pairs) from this document image.",
+        "structured": (
+            "Extract the structured information (tables, forms,"
+            " key-value pairs) from this document image."
+        ),
         "specific_region": "Read the text in the {region} of this image.",
     }
 
@@ -40,9 +46,9 @@ class OCRTask:
 
     def extract_text(
         self,
-        image: Union[str, Path, Image.Image],
-        mode: Optional[str] = None,
-        region: Optional[str] = None,
+        image: str | Path | Image.Image,
+        mode: str | None = None,
+        region: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Extract text from an image.
@@ -72,9 +78,9 @@ class OCRTask:
 
     def extract_structured(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Extract structured data (key-value pairs, tables) from a document.
 
         Args:
@@ -96,12 +102,12 @@ class OCRTask:
         )
         return self._parse_structured(raw_text)
 
-    def _parse_structured(self, text: str) -> Dict[str, Any]:
+    def _parse_structured(self, text: str) -> dict[str, Any]:
         """Parse structured output into a dictionary."""
-        result: Dict[str, Any] = {"key_values": {}, "tables": [], "raw_text": text}
+        result: dict[str, Any] = {"key_values": {}, "tables": [], "raw_text": text}
 
         lines = text.strip().split("\n")
-        current_table: List[List[str]] = []
+        current_table: list[list[str]] = []
 
         for line in lines:
             line = line.strip()
@@ -129,18 +135,18 @@ class OCRTask:
 
     def batch_extract(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        mode: Optional[str] = None,
+        images: list[str | Path | Image.Image],
+        mode: str | None = None,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Extract text from multiple images."""
         return [self.extract_text(img, mode=mode, **kwargs) for img in images]
 
     def evaluate(
         self,
-        predictions: List[str],
-        ground_truths: List[str],
-    ) -> Dict[str, float]:
+        predictions: list[str],
+        ground_truths: list[str],
+    ) -> dict[str, float]:
         """Evaluate OCR accuracy using character and word level metrics."""
         total_char_correct = 0
         total_chars = 0

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import yaml
 
@@ -57,7 +57,7 @@ class LoRAConfig:
     rank: int = 16
     alpha: int = 32
     dropout: float = 0.05
-    target_modules: List[str] = field(
+    target_modules: list[str] = field(
         default_factory=lambda: ["q_proj", "v_proj", "k_proj", "o_proj"]
     )
     use_qlora: bool = False
@@ -78,7 +78,7 @@ class TrainingConfig:
     max_grad_norm: float = 1.0
     fp16: bool = False
     bf16: bool = True
-    deepspeed: Optional[str] = None
+    deepspeed: str | None = None
     output_dir: str = "outputs"
     save_steps: int = 500
     eval_steps: int = 100
@@ -106,10 +106,10 @@ class GenerationConfig:
 class DataConfig:
     """Dataset configuration."""
 
-    train_data: Optional[str] = None
-    val_data: Optional[str] = None
-    test_data: Optional[str] = None
-    image_dir: Optional[str] = None
+    train_data: str | None = None
+    val_data: str | None = None
+    test_data: str | None = None
+    image_dir: str | None = None
     max_length: int = 2048
     image_size: int = 336
     augmentation: bool = True
@@ -129,7 +129,7 @@ class FlashVLMConfig:
     generation: GenerationConfig = field(default_factory=GenerationConfig)
     data: DataConfig = field(default_factory=DataConfig)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize config to a flat dictionary."""
         result = {}
         for key, value in self.__dict__.items():
@@ -141,7 +141,7 @@ class FlashVLMConfig:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> FlashVLMConfig:
+    def from_dict(cls, data: dict[str, Any]) -> FlashVLMConfig:
         """Create config from a nested dictionary."""
         config = cls()
         if "vision" in data:
@@ -165,7 +165,7 @@ class FlashVLMConfig:
         return config
 
     @classmethod
-    def from_yaml(cls, path: Union[str, Path]) -> FlashVLMConfig:
+    def from_yaml(cls, path: str | Path) -> FlashVLMConfig:
         """Load config from a YAML file."""
         path = Path(path)
         if not path.exists():
@@ -174,7 +174,7 @@ class FlashVLMConfig:
             data = yaml.safe_load(f)
         return cls.from_dict(data)
 
-    def save_yaml(self, path: Union[str, Path]) -> None:
+    def save_yaml(self, path: str | Path) -> None:
         """Save config to a YAML file."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -188,7 +188,7 @@ class FlashVLMConfig:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
 
-def get_config(path: Optional[Union[str, Path]] = None) -> FlashVLMConfig:
+def get_config(path: str | Path | None = None) -> FlashVLMConfig:
     """Get a FlashVLM configuration, optionally loading from a YAML file."""
     if path is None:
         return FlashVLMConfig()

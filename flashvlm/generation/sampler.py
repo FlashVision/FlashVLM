@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 
 class TemperatureSampler:
@@ -88,7 +86,7 @@ class TopPSampler:
 
         sorted_mask = cumulative_probs - F.softmax(sorted_logits, dim=-1) >= self.p
         if self.min_tokens_to_keep > 0:
-            sorted_mask[:, :self.min_tokens_to_keep] = False
+            sorted_mask[:, : self.min_tokens_to_keep] = False
 
         indices_to_remove = sorted_mask.scatter(1, sorted_indices, sorted_mask)
         logits[indices_to_remove] = float("-inf")
@@ -107,9 +105,7 @@ class RepetitionPenaltySampler:
     def __init__(self, penalty: float = 1.2):
         self.penalty = penalty
 
-    def __call__(
-        self, logits: torch.Tensor, generated_ids: torch.Tensor
-    ) -> torch.Tensor:
+    def __call__(self, logits: torch.Tensor, generated_ids: torch.Tensor) -> torch.Tensor:
         """Apply repetition penalty based on previously generated tokens.
 
         Args:
@@ -137,7 +133,7 @@ def combined_sample(
     top_k: int = 50,
     top_p: float = 0.9,
     repetition_penalty: float = 1.0,
-    generated_ids: Optional[torch.Tensor] = None,
+    generated_ids: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Apply combined sampling strategy.
 

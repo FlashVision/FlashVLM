@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
@@ -55,9 +53,9 @@ class SupervisedFineTuner:
 
     def train(
         self,
-        train_dataloader: Optional[DataLoader] = None,
-        val_dataloader: Optional[DataLoader] = None,
-    ) -> Dict[str, Any]:
+        train_dataloader: DataLoader | None = None,
+        val_dataloader: DataLoader | None = None,
+    ) -> dict[str, Any]:
         """Run supervised fine-tuning.
 
         Args:
@@ -72,11 +70,11 @@ class SupervisedFineTuner:
 
     def train_multi_stage(
         self,
-        train_dataloader: Optional[DataLoader] = None,
-        val_dataloader: Optional[DataLoader] = None,
+        train_dataloader: DataLoader | None = None,
+        val_dataloader: DataLoader | None = None,
         stage1_epochs: int = 1,
         stage2_epochs: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run multi-stage training: projector then full model.
 
         Args:

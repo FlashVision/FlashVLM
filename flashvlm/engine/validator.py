@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -21,7 +21,7 @@ class Validator:
         self.device = next(model.parameters()).device
 
     @torch.no_grad()
-    def validate(self, dataloader: DataLoader) -> Dict[str, float]:
+    def validate(self, dataloader: DataLoader) -> dict[str, float]:
         """Run validation on a dataloader and return metrics.
 
         Args:
@@ -67,7 +67,7 @@ class Validator:
 
         return metrics
 
-    def _move_to_device(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+    def _move_to_device(self, batch: dict[str, Any]) -> dict[str, Any]:
         moved = {}
         for key, value in batch.items():
             if isinstance(value, torch.Tensor):

@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from flashvlm.cfg.config import FlashVLMConfig, VisionConfig, ProjectorConfig
+from flashvlm.cfg.config import FlashVLMConfig
 
 
 class TestMultiImageInput:

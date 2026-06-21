@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -69,10 +68,10 @@ class Trainer:
 
     def train(
         self,
-        train_dataloader: Optional[DataLoader] = None,
-        val_dataloader: Optional[DataLoader] = None,
-        callbacks: Optional[list] = None,
-    ) -> Dict[str, Any]:
+        train_dataloader: DataLoader | None = None,
+        val_dataloader: DataLoader | None = None,
+        callbacks: list | None = None,
+    ) -> dict[str, Any]:
         """Run the training loop.
 
         Args:
@@ -185,14 +184,14 @@ class Trainer:
 
         return total_loss / max(num_batches, 1)
 
-    def _validate(self, dataloader: DataLoader) -> Dict[str, float]:
+    def _validate(self, dataloader: DataLoader) -> dict[str, float]:
         """Run validation."""
         from flashvlm.engine.validator import Validator
 
         validator = Validator(self.model, self.config)
         return validator.validate(dataloader)
 
-    def _move_to_device(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+    def _move_to_device(self, batch: dict[str, Any]) -> dict[str, Any]:
         """Move batch tensors to the training device."""
         moved = {}
         for key, value in batch.items():
@@ -218,7 +217,11 @@ class Trainer:
     def resume(self, checkpoint_path: str) -> None:
         """Resume training from a checkpoint."""
         path = Path(checkpoint_path)
-        checkpoint = torch.load(path / "checkpoint.pt", map_location=self.device, weights_only=False)
+        checkpoint = torch.load(
+            path / "checkpoint.pt",
+            map_location=self.device,
+            weights_only=False,
+        )
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.global_step = checkpoint["global_step"]
@@ -251,6 +254,4 @@ class Trainer:
                 "labels": torch.stack(labels),
             }
 
-        return DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
-        )
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)

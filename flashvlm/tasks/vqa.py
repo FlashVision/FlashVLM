@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-import torch
 from PIL import Image
 
 from flashvlm.registry import TASKS
@@ -22,7 +21,10 @@ class VQATask:
         "default": "Question: {question}\nAnswer:",
         "llava": "USER: <image>\n{question}\nASSISTANT:",
         "short": "{question}\nShort answer:",
-        "detailed": "Look at the image carefully and answer the following question in detail.\n\nQuestion: {question}\n\nAnswer:",
+        "detailed": (
+            "Look at the image carefully and answer the following"
+            " question in detail.\n\nQuestion: {question}\n\nAnswer:"
+        ),
         "multiple_choice": "Question: {question}\nOptions:\n{options}\nAnswer:",
     }
 
@@ -40,9 +42,9 @@ class VQATask:
 
     def answer(
         self,
-        image: Union[str, Path, Image.Image],
+        image: str | Path | Image.Image,
         question: str,
-        options: Optional[List[str]] = None,
+        options: list[str] | None = None,
         **kwargs: Any,
     ) -> str:
         """Answer a visual question.
@@ -67,17 +69,17 @@ class VQATask:
 
     def batch_answer(
         self,
-        images: List[Union[str, Path, Image.Image]],
-        questions: List[str],
+        images: list[str | Path | Image.Image],
+        questions: list[str],
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Answer multiple VQA questions."""
         answers = []
         for image, question in zip(images, questions):
             answers.append(self.answer(image, question, **kwargs))
         return answers
 
-    def _format_prompt(self, question: str, options: Optional[List[str]] = None) -> str:
+    def _format_prompt(self, question: str, options: list[str] | None = None) -> str:
         if options and self.prompt_style == "multiple_choice":
             options_str = "\n".join(f"({chr(65 + i)}) {opt}" for i, opt in enumerate(options))
             return self.PROMPT_TEMPLATES["multiple_choice"].format(
@@ -91,14 +93,14 @@ class VQATask:
         answer = answer.strip()
         for stop in ["\n", "Question:", "USER:", "ASSISTANT:"]:
             if stop in answer:
-                answer = answer[:answer.index(stop)]
+                answer = answer[: answer.index(stop)]
         return answer.strip()
 
     def evaluate(
         self,
-        predictions: List[str],
-        ground_truths: List[Union[str, List[str]]],
-    ) -> Dict[str, float]:
+        predictions: list[str],
+        ground_truths: list[str | list[str]],
+    ) -> dict[str, float]:
         """Compute VQA accuracy metrics.
 
         Uses soft accuracy: a prediction is correct if it matches

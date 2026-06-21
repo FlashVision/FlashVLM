@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -48,7 +48,7 @@ class DPOTrainer:
         policy_rejected_logps: torch.Tensor,
         reference_chosen_logps: torch.Tensor,
         reference_rejected_logps: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute DPO loss.
 
         Args:
@@ -82,7 +82,7 @@ class DPOTrainer:
         self,
         model: nn.Module,
         input_ids: torch.Tensor,
-        pixel_values: Optional[torch.Tensor],
+        pixel_values: torch.Tensor | None,
         attention_mask: torch.Tensor,
         labels: torch.Tensor,
     ) -> torch.Tensor:
@@ -107,10 +107,10 @@ class DPOTrainer:
 
     def train(
         self,
-        train_dataloader: Optional[DataLoader] = None,
+        train_dataloader: DataLoader | None = None,
         epochs: int = 1,
         learning_rate: float = 5e-7,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run DPO training.
 
         Expects dataloader batches with:
@@ -143,7 +143,10 @@ class DPOTrainer:
             num_batches = 0
 
             for batch in tqdm(train_dataloader, desc=f"DPO Epoch {epoch + 1}"):
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                batch = {
+                    k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                    for k, v in batch.items()
+                }
 
                 pixel_values = batch.get("pixel_values")
 
@@ -179,8 +182,10 @@ class DPOTrainer:
                     )
 
                 loss, chosen_reward, rejected_reward = self.compute_dpo_loss(
-                    policy_chosen_logps, policy_rejected_logps,
-                    ref_chosen_logps, ref_rejected_logps,
+                    policy_chosen_logps,
+                    policy_rejected_logps,
+                    ref_chosen_logps,
+                    ref_rejected_logps,
                 )
 
                 optimizer.zero_grad()

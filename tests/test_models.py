@@ -1,12 +1,11 @@
 """Tests for FlashVLM model components."""
 
-import pytest
 import torch
 import torch.nn as nn
 
-from flashvlm.cfg.config import FlashVLMConfig, VisionConfig, ProjectorConfig
-from flashvlm.models.projector import MLPProjector, QFormerProjector, CrossAttentionProjector
+from flashvlm.cfg.config import FlashVLMConfig, ProjectorConfig
 from flashvlm.models.lora import LoRALinear, apply_lora
+from flashvlm.models.projector import CrossAttentionProjector, MLPProjector, QFormerProjector
 
 
 class TestMLPProjector:
@@ -101,7 +100,7 @@ class TestLoRA:
             nn.ReLU(),
             nn.Linear(128, 128),
         )
-        total_before = sum(p.numel() for p in model.parameters())
+        _total_before = sum(p.numel() for p in model.parameters())
 
         class NamedModel(nn.Module):
             def __init__(self):

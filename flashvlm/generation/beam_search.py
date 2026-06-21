@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 
 @dataclass
 class BeamHypothesis:
     """A single beam hypothesis during search."""
 
-    tokens: List[int] = field(default_factory=list)
+    tokens: list[int] = field(default_factory=list)
     score: float = 0.0
     is_finished: bool = False
 
@@ -26,7 +25,7 @@ class BeamHypothesis:
         """Length-normalized score."""
         if self.length == 0:
             return self.score
-        return self.score / (self.length ** length_penalty)
+        return self.score / (self.length**length_penalty)
 
 
 class BeamSearchGenerator:
@@ -55,8 +54,8 @@ class BeamSearchGenerator:
         self,
         model: nn.Module,
         input_ids: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
+        attention_mask: torch.Tensor | None = None,
+        inputs_embeds: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Run beam search generation.
 
@@ -79,9 +78,9 @@ class BeamSearchGenerator:
             beam_attention_mask = None
 
         beam_scores = torch.zeros(batch_size * self.num_beams, device=device)
-        beam_scores[1::self.num_beams] = float("-inf")
+        beam_scores[1 :: self.num_beams] = float("-inf")
 
-        finished_hypotheses: List[List[BeamHypothesis]] = [[] for _ in range(batch_size)]
+        finished_hypotheses: list[list[BeamHypothesis]] = [[] for _ in range(batch_size)]
         active_beams = torch.ones(batch_size * self.num_beams, dtype=torch.bool, device=device)
 
         for step in range(self.max_length):
@@ -115,9 +114,7 @@ class BeamSearchGenerator:
             vocab_size = next_scores.shape[-1]
 
             next_scores = next_scores.view(batch_size, self.num_beams * vocab_size)
-            top_scores, top_indices = torch.topk(
-                next_scores, 2 * self.num_beams, dim=-1
-            )
+            top_scores, top_indices = torch.topk(next_scores, 2 * self.num_beams, dim=-1)
 
             beam_indices = top_indices // vocab_size
             token_indices = top_indices % vocab_size
@@ -144,13 +141,19 @@ class BeamSearchGenerator:
                             is_finished=True,
                         )
                         finished_hypotheses[batch_idx].append(hyp)
-                        if self.early_stopping and len(finished_hypotheses[batch_idx]) >= self.num_beams:
-                            active_beams[batch_idx * self.num_beams:(batch_idx + 1) * self.num_beams] = False
+                        finished = finished_hypotheses[batch_idx]
+                        if self.early_stopping and len(finished) >= self.num_beams:
+                            start = batch_idx * self.num_beams
+                            end = (batch_idx + 1) * self.num_beams
+                            active_beams[start:end] = False
                     else:
-                        new_ids = torch.cat([
-                            beam_input_ids[global_beam_idx].unsqueeze(0),
-                            torch.tensor([[token_id]], device=device),
-                        ], dim=-1)
+                        new_ids = torch.cat(
+                            [
+                                beam_input_ids[global_beam_idx].unsqueeze(0),
+                                torch.tensor([[token_id]], device=device),
+                            ],
+                            dim=-1,
+                        )
                         new_beam_input_ids.append(new_ids)
                         new_beam_scores[batch_idx * self.num_beams + beam_count] = score
                         beam_count += 1
@@ -192,7 +195,7 @@ class BeamSearchGenerator:
         max_out_len = max(seq.shape[0] for seq in best_sequences)
         output = torch.full((batch_size, max_out_len), self.pad_token_id, device=device)
         for i, seq in enumerate(best_sequences):
-            output[i, :seq.shape[0]] = seq
+            output[i, : seq.shape[0]] = seq
 
         return output
 
@@ -207,8 +210,8 @@ class BeamSearchGenerator:
                 continue
 
             for i in range(len(generated) - ngram_size + 1):
-                ngram = tuple(generated[i:i + ngram_size - 1])
-                suffix = tuple(generated[-(ngram_size - 1):])
+                ngram = tuple(generated[i : i + ngram_size - 1])
+                suffix = tuple(generated[-(ngram_size - 1) :])
                 if ngram == suffix and i + ngram_size - 1 < len(generated):
                     banned_token = generated[i + ngram_size - 1]
                     log_probs[batch_idx, banned_token] = float("-inf")

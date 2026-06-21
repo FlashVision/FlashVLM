@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ from flashvlm.cfg.config import FlashVLMConfig
 class Exporter:
     """Export FlashVLM models to various deployment formats."""
 
-    def __init__(self, model: nn.Module, config: Optional[FlashVLMConfig] = None):
+    def __init__(self, model: nn.Module, config: FlashVLMConfig | None = None):
         self.model = model
         self.config = config or getattr(model, "config", FlashVLMConfig())
 
@@ -48,7 +48,9 @@ class Exporter:
         elif format == "safetensors":
             return self._export_safetensors(output_path, **kwargs)
         else:
-            raise ValueError(f"Unsupported export format: {format}. Use 'onnx', 'torchscript', or 'safetensors'.")
+            raise ValueError(
+                f"Unsupported export format: {format}. Use 'onnx', 'torchscript', or 'safetensors'."
+            )
 
     def _export_onnx(self, output_path: Path, **kwargs: Any) -> str:
         """Export model to ONNX format."""
@@ -133,16 +135,14 @@ class Exporter:
 
     def _quantize_model(self) -> None:
         """Apply dynamic quantization to the model."""
-        self.model = torch.quantization.quantize_dynamic(
-            self.model, {nn.Linear}, dtype=torch.qint8
-        )
+        self.model = torch.quantization.quantize_dynamic(self.model, {nn.Linear}, dtype=torch.qint8)
         print("Dynamic quantization applied (INT8).")
 
-    def get_model_size(self) -> Dict[str, Any]:
+    def get_model_size(self) -> dict[str, Any]:
         """Get model size statistics."""
         total_params = sum(p.numel() for p in self.model.parameters())
         trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        size_mb = sum(p.numel() * p.element_size() for p in self.model.parameters()) / (1024 ** 2)
+        size_mb = sum(p.numel() * p.element_size() for p in self.model.parameters()) / (1024**2)
 
         return {
             "total_parameters": total_params,
