@@ -12,10 +12,17 @@ class TestMultiImageInput:
         from flashvlm.models.vlm import FlashVLM
 
         config = FlashVLMConfig()
+        config.vision.hidden_size = 64
+        config.vision.patch_size = 8
+        config.vision.image_size = 64
+        config.vision.freeze = False
+        config.projector.input_dim = 64
+        config.projector.output_dim = 128
+        config.language.hidden_size = 128
         config.language.model_name = "placeholder"
         model = FlashVLM(config)
 
-        dummy_imgs = [torch.randn(1, 3, 336, 336) for _ in range(3)]
+        dummy_imgs = [torch.randn(1, 3, 64, 64) for _ in range(3)]
         embeds = model.encode_images(dummy_imgs)
         assert len(embeds) == 3
         for e in embeds:
@@ -25,12 +32,19 @@ class TestMultiImageInput:
         from flashvlm.models.vlm import FlashVLM
 
         config = FlashVLMConfig()
+        config.vision.hidden_size = 64
+        config.vision.patch_size = 8
+        config.vision.image_size = 64
+        config.vision.freeze = False
+        config.projector.input_dim = 64
+        config.projector.output_dim = 128
+        config.language.hidden_size = 128
         config.language.model_name = "placeholder"
         model = FlashVLM(config)
 
-        input_ids = torch.randint(0, 100, (1, 10))
-        embeds = [torch.randn(1, 5, 4096), torch.randn(1, 5, 4096)]
-        merged = model._interleave_multi_image_tokens(input_ids, embeds)
+        input_embeds = torch.randn(1, 10, 128)
+        embeds = [torch.randn(1, 5, 128), torch.randn(1, 5, 128)]
+        merged = model._interleave_multi_image_tokens(input_embeds, embeds)
         assert merged.shape[1] > 10
 
 
@@ -86,10 +100,11 @@ class TestPhiVision:
         config = FlashVLMConfig()
         config.vision.hidden_size = 64
         config.language.hidden_size = 128
-        config.vision.patch_size = 14
-        config.vision.image_size = 28
+        config.vision.patch_size = 8
+        config.vision.image_size = 64
+        config.vision.encoder_name = "siglip"
         embed = PhiImageEmbedding(config)
-        x = torch.randn(1, 3, 28, 28)
+        x = torch.randn(1, 3, 64, 64)
         out = embed(x)
         assert out.dim() == 3
         assert out.shape[0] == 1
