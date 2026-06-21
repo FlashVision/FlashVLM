@@ -39,8 +39,7 @@ class TestMLPProjector:
 class TestQFormerProjector:
     def test_forward_shape(self):
         config = ProjectorConfig(
-            input_dim=1024, output_dim=4096, num_layers=2,
-            num_query_tokens=64, type="qformer"
+            input_dim=1024, output_dim=4096, num_layers=2, num_query_tokens=64, type="qformer"
         )
         proj = QFormerProjector(config)
 
@@ -49,9 +48,7 @@ class TestQFormerProjector:
         assert output.shape == (2, 64, 4096)
 
     def test_different_query_counts(self):
-        config = ProjectorConfig(
-            input_dim=512, output_dim=768, num_query_tokens=32, type="qformer"
-        )
+        config = ProjectorConfig(input_dim=512, output_dim=768, num_query_tokens=32, type="qformer")
         proj = QFormerProjector(config)
 
         x = torch.randn(1, 256, 512)

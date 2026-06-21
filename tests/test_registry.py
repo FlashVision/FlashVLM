@@ -38,6 +38,7 @@ class TestRegistry:
             pass
 
         with pytest.raises(KeyError, match="already registered"):
+
             @registry.register("dup")
             class Second:
                 pass

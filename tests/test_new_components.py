@@ -10,6 +10,7 @@ from flashvlm.cfg.config import FlashVLMConfig
 class TestMultiImageInput:
     def test_encode_images_returns_list(self):
         from flashvlm.models.vlm import FlashVLM
+
         config = FlashVLMConfig()
         config.language.model_name = "placeholder"
         model = FlashVLM(config)
@@ -22,6 +23,7 @@ class TestMultiImageInput:
 
     def test_interleave_multi_image_fallback(self):
         from flashvlm.models.vlm import FlashVLM
+
         config = FlashVLMConfig()
         config.language.model_name = "placeholder"
         model = FlashVLM(config)
@@ -35,6 +37,7 @@ class TestMultiImageInput:
 class TestVideoEncoder:
     def test_sample_frames_uniform(self):
         from flashvlm.models.video_encoder import sample_frames
+
         indices = sample_frames(100, num_sample=8, strategy="uniform")
         assert len(indices) == 8
         assert indices[0] == 0
@@ -42,11 +45,13 @@ class TestVideoEncoder:
 
     def test_sample_frames_short_video(self):
         from flashvlm.models.video_encoder import sample_frames
+
         indices = sample_frames(3, num_sample=8)
         assert len(indices) == 3
 
     def test_temporal_pooling_mean(self):
         from flashvlm.models.video_encoder import TemporalPooling
+
         pool = TemporalPooling(64, pool_type="mean")
         x = torch.randn(2, 8, 16, 64)
         out = pool(x)
@@ -54,6 +59,7 @@ class TestVideoEncoder:
 
     def test_temporal_pooling_attention(self):
         from flashvlm.models.video_encoder import TemporalPooling
+
         pool = TemporalPooling(64, num_heads=4, pool_type="attention")
         x = torch.randn(1, 4, 8, 64)
         out = pool(x)
@@ -61,6 +67,7 @@ class TestVideoEncoder:
 
     def test_video_token_generator(self):
         from flashvlm.models.video_encoder import VideoTokenGenerator
+
         gen = VideoTokenGenerator(64, max_frames=16)
         x = torch.randn(2, 4, 8, 64)
         out = gen(x, num_frames=4)
@@ -70,10 +77,12 @@ class TestVideoEncoder:
 class TestPhiVision:
     def test_phi_vision_registered(self):
         from flashvlm.registry import MODELS
+
         assert "phi_vision" in MODELS
 
     def test_phi_image_embedding(self):
         from flashvlm.models.architectures.phi_vision import PhiImageEmbedding
+
         config = FlashVLMConfig()
         config.vision.hidden_size = 64
         config.language.hidden_size = 128
@@ -119,7 +128,8 @@ class TestBenchmarkEvaluation:
         model = DummyModel()
         evaluator = POPEEvaluator(model=model)
         metrics = evaluator.compute_metrics(
-            ["yes", "no", "yes"], [
+            ["yes", "no", "yes"],
+            [
                 {"answer": "yes"},
                 {"answer": "no"},
                 {"answer": "no"},
@@ -130,6 +140,7 @@ class TestBenchmarkEvaluation:
 
     def test_mmbench_extract_choice(self):
         from flashvlm.eval.evaluator import MMBenchEvaluator
+
         assert MMBenchEvaluator._extract_choice("A") == "A"
         assert MMBenchEvaluator._extract_choice("B. cats") == "B"
         assert MMBenchEvaluator._extract_choice("The answer is C") == "C"
@@ -178,20 +189,24 @@ class TestMultiStageTraining:
 class TestChartQA:
     def test_chart_qa_registered(self):
         from flashvlm.registry import TASKS
+
         assert "chart_qa" in TASKS
 
     def test_normalize_answer(self):
         from flashvlm.tasks.chart_qa import ChartQATask
+
         assert ChartQATask._normalize_answer("$1,234.5") == "1234.5"
         assert ChartQATask._normalize_answer("50%") == "50"
 
     def test_extract_number(self):
         from flashvlm.tasks.chart_qa import ChartQATask
+
         assert ChartQATask._extract_number("about 42.5 items") == 42.5
         assert ChartQATask._extract_number("no number here") is None
 
     def test_evaluate_relaxed(self):
         from flashvlm.tasks.chart_qa import ChartQATask
+
         task = ChartQATask(model=None)
         metrics = task.evaluate(["42", "100"], ["42", "105"], relaxed_accuracy=True)
         assert metrics["correct"] == 2
@@ -201,10 +216,12 @@ class TestChartQA:
 class TestGUIAgent:
     def test_gui_agent_registered(self):
         from flashvlm.registry import TASKS
+
         assert "gui_agent" in TASKS
 
     def test_parse_bbox(self):
         from flashvlm.tasks.gui_agent import GUIAgentTask
+
         task = GUIAgentTask(model=None)
         bbox = task._parse_bbox("[0.1, 0.2, 0.8, 0.9]")
         assert len(bbox) == 4
@@ -213,12 +230,14 @@ class TestGUIAgent:
 
     def test_parse_action(self):
         from flashvlm.tasks.gui_agent import GUIAgentTask
+
         task = GUIAgentTask(model=None)
-        action = task._parse_action('click at 0.5 0.3')
+        action = task._parse_action("click at 0.5 0.3")
         assert action.action_type == "click"
 
     def test_parse_plan(self):
         from flashvlm.tasks.gui_agent import GUIAgentTask
+
         task = GUIAgentTask(model=None)
         plan = task._parse_plan("1. Click the search bar\n2. Type query\n3. Press enter")
         assert len(plan) == 3

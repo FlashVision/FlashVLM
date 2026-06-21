@@ -19,8 +19,7 @@ class OCRTask:
 
     PROMPT_TEMPLATES = {
         "extract_all": (
-            "Extract all text visible in this image,"
-            " preserving the layout as much as possible."
+            "Extract all text visible in this image, preserving the layout as much as possible."
         ),
         "document": "Read the document in this image and output its text content in order.",
         "scene": "Identify and transcribe any text visible in this scene image.",
