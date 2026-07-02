@@ -42,8 +42,8 @@ htmlcov/
 logs/
 *.tmp
 
-data/
-datasets/
+/data/
+/datasets/
 
 .DS_Store
 Thumbs.db
