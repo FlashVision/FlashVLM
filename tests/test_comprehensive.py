@@ -20,7 +20,7 @@ from flashvlm.cfg.config import FlashVLMConfig, ProjectorConfig
 # H=64, P=8, I=64  →  (64/8)^2 = 64 = H  ✓
 _V_HIDDEN = 64
 _V_PATCH = 8
-_V_IMG = 64
+_V_IMG = 70
 _L_HIDDEN = 128
 _L_VOCAB = 100
 
